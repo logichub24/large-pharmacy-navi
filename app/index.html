@@ -98,34 +98,34 @@
                 </button>
             </div>
 
-            <!-- Scrollable Info Chips: 현재 반경 기준 실시간 집계 -->
-            <div class="flex overflow-x-auto hide-scrollbar px-3 gap-2 pointer-events-auto pb-2">
-                <button onclick="openTabModal('openNowModal', 'opennow')" class="bg-white border border-gray-100 rounded-full pl-1 pr-3 py-1 flex items-center gap-1.5 shadow-sm shrink-0 hover:bg-gray-50 active:scale-95 transition">
-                    <div class="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center text-[10px]">🟢</div>
-                    <div class="text-left flex flex-col">
-                        <span class="text-[10px] font-black text-gray-900 leading-none mt-0.5">지금 영업중</span>
-                        <span id="chipOpenNow" class="text-[8px] text-emerald-600 font-bold leading-none mt-1">0곳</span>
+            <!-- Info Chips: 현재 반경 기준 실시간 집계. 화면 밖으로 잘리지 않도록 2줄 그리드로 배치 -->
+            <div class="grid grid-cols-2 gap-1 px-3 pointer-events-auto pb-1.5">
+                <button onclick="openTabModal('openNowModal', 'opennow')" class="bg-white border border-gray-100 rounded-full pl-1 pr-3 py-0.5 flex items-center gap-1.5 shadow-sm hover:bg-gray-50 active:scale-95 transition">
+                    <div class="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center text-[9px] shrink-0">🟢</div>
+                    <div class="text-left flex flex-col min-w-0">
+                        <span class="text-[10px] font-black text-gray-900 leading-none truncate">지금 영업중</span>
+                        <span id="chipOpenNow" class="text-[8px] text-emerald-600 font-bold leading-none mt-0.5">0곳</span>
                     </div>
                 </button>
-                <button onclick="quickFilterChip('open365')" class="bg-white border border-gray-100 rounded-full pl-1 pr-3 py-1 flex items-center gap-1.5 shadow-sm shrink-0 hover:bg-gray-50 active:scale-95 transition">
-                    <div class="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-[10px]">📅</div>
-                    <div class="text-left flex flex-col">
-                        <span class="text-[10px] font-black text-gray-900 leading-none mt-0.5">365일 운영</span>
-                        <span id="chip365" class="text-[8px] text-blue-600 font-bold leading-none mt-1">0곳</span>
+                <button onclick="quickFilterChip('open365')" class="bg-white border border-gray-100 rounded-full pl-1 pr-3 py-0.5 flex items-center gap-1.5 shadow-sm hover:bg-gray-50 active:scale-95 transition">
+                    <div class="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center text-[9px] shrink-0">📅</div>
+                    <div class="text-left flex flex-col min-w-0">
+                        <span class="text-[10px] font-black text-gray-900 leading-none truncate">365일 운영</span>
+                        <span id="chip365" class="text-[8px] text-blue-600 font-bold leading-none mt-0.5">0곳</span>
                     </div>
                 </button>
-                <button onclick="quickFilterChip('nightService')" class="bg-white border border-gray-100 rounded-full pl-1 pr-3 py-1 flex items-center gap-1.5 shadow-sm shrink-0 hover:bg-gray-50 active:scale-95 transition">
-                    <div class="w-6 h-6 rounded-full bg-indigo-100 flex items-center justify-center text-[10px]">🌙</div>
-                    <div class="text-left flex flex-col">
-                        <span class="text-[10px] font-black text-gray-900 leading-none mt-0.5">심야 운영</span>
-                        <span id="chipNight" class="text-[8px] text-indigo-600 font-bold leading-none mt-1">0곳</span>
+                <button onclick="quickFilterChip('nightService')" class="bg-white border border-gray-100 rounded-full pl-1 pr-3 py-0.5 flex items-center gap-1.5 shadow-sm hover:bg-gray-50 active:scale-95 transition">
+                    <div class="w-5 h-5 rounded-full bg-indigo-100 flex items-center justify-center text-[9px] shrink-0">🌙</div>
+                    <div class="text-left flex flex-col min-w-0">
+                        <span class="text-[10px] font-black text-gray-900 leading-none truncate">심야 운영</span>
+                        <span id="chipNight" class="text-[8px] text-indigo-600 font-bold leading-none mt-0.5">0곳</span>
                     </div>
                 </button>
-                <button onclick="quickFilterChip('holidayOpen')" class="bg-white border border-gray-100 rounded-full pl-1 pr-3 py-1 flex items-center gap-1.5 shadow-sm shrink-0 hover:bg-gray-50 active:scale-95 transition">
-                    <div class="w-6 h-6 rounded-full bg-rose-100 flex items-center justify-center text-[10px]">🎌</div>
-                    <div class="text-left flex flex-col">
-                        <span class="text-[10px] font-black text-gray-900 leading-none mt-0.5">공휴일 운영</span>
-                        <span id="chipHoliday" class="text-[8px] text-rose-600 font-bold leading-none mt-1">0곳</span>
+                <button onclick="quickFilterChip('holidayOpen')" class="bg-white border border-gray-100 rounded-full pl-1 pr-3 py-0.5 flex items-center gap-1.5 shadow-sm hover:bg-gray-50 active:scale-95 transition">
+                    <div class="w-5 h-5 rounded-full bg-rose-100 flex items-center justify-center text-[9px] shrink-0">🎌</div>
+                    <div class="text-left flex flex-col min-w-0">
+                        <span class="text-[10px] font-black text-gray-900 leading-none truncate">공휴일 운영</span>
+                        <span id="chipHoliday" class="text-[8px] text-rose-600 font-bold leading-none mt-0.5">0곳</span>
                     </div>
                 </button>
             </div>
@@ -213,14 +213,14 @@
         <div id="searchModal" class="tab-modal">
             <div class="tab-modal-bg" onclick="goHome()"></div>
             <div class="tab-modal-content">
-                <div class="p-4 border-b border-gray-100 flex items-center gap-3 bg-white sticky top-0 z-20 shrink-0 rounded-t-[24px]">
+                <div class="p-4 border-b border-gray-100 flex items-center gap-3 bg-white shrink-0 rounded-t-[24px]">
                     <button onclick="goHome()" class="text-gray-500 hover:text-gray-800 p-2"><i class="fa-solid fa-arrow-left text-xl"></i></button>
                     <div class="flex-1 relative">
                         <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 transform -translate-y-1/2 text-emerald-500"></i>
                         <input type="text" id="searchInput" oninput="performSearch()" placeholder="약국명, 주소 또는 취급 품목 검색" class="w-full bg-emerald-50 text-gray-900 rounded-full py-2.5 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 font-bold placeholder-emerald-300">
                     </div>
                 </div>
-                <div class="flex gap-2 px-4 py-2 border-b border-gray-100 overflow-x-auto hide-scrollbar shrink-0" id="itemQuickChips"></div>
+                <div class="grid grid-cols-4 gap-1 px-4 py-1.5 border-b border-gray-100 shrink-0" id="itemQuickChips"></div>
                 <div class="flex-1 overflow-y-auto pb-4">
                     <div id="searchEmptyState" class="p-6 flex flex-col items-center">
                         <div class="bg-emerald-100 text-emerald-700 px-4 py-2 rounded-xl mb-4 text-xs font-black w-full text-center">💡 필요한 품목을 눌러보거나 약국명/주소를 검색하세요</div>
@@ -234,7 +234,7 @@
         <div id="favoritesModal" class="tab-modal">
             <div class="tab-modal-bg" onclick="goHome()"></div>
             <div class="tab-modal-content">
-                <div class="p-4 border-b border-gray-100 flex items-center gap-3 bg-white sticky top-0 z-20 shrink-0 rounded-t-[24px]">
+                <div class="p-4 border-b border-gray-100 flex items-center gap-3 bg-white shrink-0 rounded-t-[24px]">
                     <button onclick="goHome()" class="text-gray-500 hover:text-gray-800 p-2"><i class="fa-solid fa-arrow-left text-xl"></i></button>
                     <div class="flex-1">
                         <h3 class="font-black text-lg text-gray-900"><i class="fa-solid fa-heart text-rose-500 mr-1"></i> 즐겨찾는 약국</h3>
@@ -251,7 +251,7 @@
         <div id="openNowModal" class="tab-modal">
             <div class="tab-modal-bg" onclick="goHome()"></div>
             <div class="tab-modal-content">
-                <div class="p-4 border-b border-gray-100 flex items-center gap-3 bg-white sticky top-0 z-20 shrink-0 rounded-t-[24px]">
+                <div class="p-4 border-b border-gray-100 flex items-center gap-3 bg-white shrink-0 rounded-t-[24px]">
                     <button onclick="goHome()" class="text-gray-500 hover:text-gray-800 p-2"><i class="fa-solid fa-arrow-left text-xl"></i></button>
                     <div>
                         <h3 class="font-black text-lg text-gray-900"><i class="fa-solid fa-store text-emerald-500 mr-1"></i> 주변 영업중 약국</h3>
@@ -266,14 +266,14 @@
         <div id="allListModal" class="tab-modal">
             <div class="tab-modal-bg" onclick="goHome()"></div>
             <div class="tab-modal-content">
-                <div class="p-4 border-b border-gray-100 flex items-center gap-3 bg-white sticky top-0 z-20 shrink-0 rounded-t-[24px]">
+                <div class="p-4 border-b border-gray-100 flex items-center gap-3 bg-white shrink-0 rounded-t-[24px]">
                     <button onclick="goHome()" class="text-gray-500 hover:text-gray-800 p-2"><i class="fa-solid fa-arrow-left text-xl"></i></button>
                     <div class="flex-1">
                         <h3 class="font-black text-lg text-gray-900"><i class="fa-solid fa-list-ul text-emerald-500 mr-1"></i> 전체 약국 목록</h3>
                         <p class="text-[10px] text-gray-500 font-bold leading-tight">서비스 조건으로 필터링해서 찾아보세요</p>
                     </div>
                 </div>
-                <div class="flex gap-2 px-3 py-2 border-b border-gray-100 overflow-x-auto hide-scrollbar shrink-0 bg-white" id="allListFilterChips"></div>
+                <div class="grid grid-cols-4 gap-1 px-3 py-1.5 border-b border-gray-100 shrink-0 bg-white" id="allListFilterChips"></div>
                 <div class="flex-1 overflow-y-auto p-2 pb-4 space-y-2" id="allList"></div>
             </div>
         </div>
@@ -1076,7 +1076,7 @@
         // ── 품목/약국 검색 ───────────────────────────────────────────────
         function renderItemQuickChips() {
             document.getElementById('itemQuickChips').innerHTML = ITEM_CATS.map(c => `
-                <button onclick="quickSearchItem('${c.key}')" id="isf-${c.key}" class="text-[11px] font-bold px-3 py-1.5 rounded-full border border-gray-200 text-gray-600 bg-white whitespace-nowrap shrink-0 active:scale-95 transition">${c.emoji} ${c.label}</button>
+                <button onclick="quickSearchItem('${c.key}')" id="isf-${c.key}" class="text-[10px] font-bold px-1.5 py-1 rounded-full border border-gray-200 text-gray-600 bg-white truncate text-center active:scale-95 transition">${c.emoji} ${c.label}</button>
             `).join('');
         }
         function quickSearchItem(key) {
@@ -1155,7 +1155,7 @@
         let allListFilters = new Set();
         function renderAllListFilterChips() {
             document.getElementById('allListFilterChips').innerHTML = QUICK_FILTER_KEYS.map(key => `
-                <button onclick="toggleAllListFilter('${key}')" id="alf-${key}" class="text-[11px] font-bold px-3 py-1.5 rounded-full border border-gray-200 text-gray-600 bg-white whitespace-nowrap shrink-0 active:scale-95 transition">${SERVICE_MAP[key].emoji} ${SERVICE_MAP[key].label}</button>
+                <button onclick="toggleAllListFilter('${key}')" id="alf-${key}" class="text-[10px] font-bold px-1.5 py-1 rounded-full border border-gray-200 text-gray-600 bg-white truncate text-center active:scale-95 transition">${SERVICE_MAP[key].emoji} ${SERVICE_MAP[key].label}</button>
             `).join('');
         }
         function toggleAllListFilter(key) {
