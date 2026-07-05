@@ -91,7 +91,7 @@
                 <div id="titlePill" class="bg-white/95 backdrop-blur-md px-4 py-2.5 rounded-full shadow-sm border border-gray-100 pointer-events-auto inline-flex items-center gap-2">
                     <h1 class="text-sm font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-teal-600 tracking-tight leading-none m-0">대형약국</h1>
                     <div class="w-px h-3 bg-gray-200"></div>
-                    <p class="text-[10px] text-gray-500 font-bold leading-none m-0 pt-0.5">내 주변 약국 안내</p>
+                    <p class="text-[10px] text-gray-500 font-bold leading-none m-0 pt-0.5">건강 쇼핑 + 대형약국 찾기</p>
                 </div>
                 <button onclick="openSettings()" class="w-9 h-9 bg-white/95 backdrop-blur-md rounded-full shadow-sm border border-gray-100 flex items-center justify-center text-gray-500 pointer-events-auto hover:bg-gray-50 active:scale-95 transition shrink-0 ml-auto">
                     <i class="fa-solid fa-gear text-sm"></i>
@@ -220,7 +220,7 @@
                         <input type="text" id="searchInput" oninput="performSearch()" placeholder="약국명, 주소 또는 취급 품목 검색" class="w-full bg-emerald-50 text-gray-900 rounded-full py-2.5 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 font-bold placeholder-emerald-300">
                     </div>
                 </div>
-                <div class="grid grid-cols-4 gap-1 px-4 py-1.5 border-b border-gray-100 shrink-0" id="itemQuickChips"></div>
+                <div class="grid grid-cols-3 gap-1 px-4 py-1.5 border-b border-gray-100 shrink-0" id="itemQuickChips"></div>
                 <div class="flex-1 overflow-y-auto pb-4">
                     <div id="searchEmptyState" class="p-6 flex flex-col items-center">
                         <div class="bg-emerald-100 text-emerald-700 px-4 py-2 rounded-xl mb-4 text-xs font-black w-full text-center">💡 필요한 품목을 눌러보거나 약국명/주소를 검색하세요</div>
@@ -317,14 +317,31 @@
                 </button>
             </div>
             <div class="flex-1 overflow-y-auto bg-gray-50 p-4 pb-6 space-y-4">
-                <div>
-                    <p class="text-xs font-black text-gray-500 mb-2">운영/서비스 정보</p>
-                    <div id="bsServiceBadges" class="grid grid-cols-3 gap-1.5"></div>
+                <!-- 일반약국: "약을 사러 간다" - 조제 가능 여부만 간결하게 -->
+                <div id="bsGeneralInfo" class="hidden">
+                    <div class="bg-white rounded-xl border border-gray-100 p-3.5 flex items-center gap-3">
+                        <div id="bsPrescriptionIcon" class="w-10 h-10 rounded-full flex items-center justify-center text-lg shrink-0">📋</div>
+                        <div>
+                            <p class="text-sm font-black text-gray-800">처방전 조제</p>
+                            <p id="bsPrescriptionText" class="text-[11px] text-gray-500">정보 없음</p>
+                        </div>
+                    </div>
                 </div>
-                <div>
-                    <p class="text-xs font-black text-gray-500 mb-2">취급 품목</p>
-                    <div id="bsItemChips" class="flex flex-wrap gap-1.5"></div>
-                    <p class="text-[10px] text-gray-400 mt-2 leading-relaxed">※ 실시간 재고가 아닌 취급 품목 안내입니다. 방문 전 전화로 확인해주세요.</p>
+                <!-- 대형약국: "건강 쇼핑을 간다" - 서비스 배지 + 취급 품목까지 풍성하게 -->
+                <div id="bsShoppingInfo" class="hidden space-y-4">
+                    <div class="bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl p-3 flex items-center gap-2 shadow-sm">
+                        <span class="text-lg shrink-0">🛍️</span>
+                        <p class="text-xs font-bold leading-snug">의약품은 물론 건강기능식품·의료기기까지, 건강 쇼핑하기 좋은 대형약국이에요</p>
+                    </div>
+                    <div>
+                        <p class="text-xs font-black text-gray-500 mb-2">운영/서비스 정보</p>
+                        <div id="bsServiceBadges" class="grid grid-cols-3 gap-1.5"></div>
+                    </div>
+                    <div>
+                        <p class="text-xs font-black text-gray-500 mb-2">취급 품목</p>
+                        <div id="bsItemChips" class="flex flex-wrap gap-1.5"></div>
+                        <p class="text-[10px] text-gray-400 mt-2 leading-relaxed">※ 실시간 재고가 아닌 취급 품목 안내입니다. 방문 전 전화로 확인해주세요.</p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -461,6 +478,7 @@
             { key: 'omega3',      label: '오메가3',  emoji: '🐟' },
             { key: 'bp_monitor',  label: '혈압계',   emoji: '🩺' },
             { key: 'thermometer', label: '체온계',   emoji: '🌡️' },
+            { key: 'baby',        label: '유아용품', emoji: '🍼' },
         ];
         const ITEM_MAP = Object.fromEntries(ITEM_CATS.map(c => [c.key, c]));
 
@@ -970,21 +988,34 @@
 
             renderFavButton();
 
-            const badgesEl = document.getElementById('bsServiceBadges');
-            const flags = { open365: store.hours.open365, nightService: store.hours.nightService, holidayOpen: store.hours.holidayOpen, ...store.services };
-            badgesEl.innerHTML = SERVICE_DEFS.filter(s => s.key !== 'large').map(s => {
-                const on = !!flags[s.key];
-                return `<div class="flex flex-col items-center py-2 rounded-xl border ${on ? 'bg-emerald-50 border-emerald-100 text-emerald-700' : 'bg-gray-50 border-gray-100 text-gray-300'}">
-                    <span class="text-base">${s.emoji}</span>
-                    <span class="text-[9px] font-bold mt-0.5 text-center leading-tight">${s.label}</span>
-                </div>`;
-            }).join('');
+            // "약을 사러 간다"(일반약국) vs "건강 쇼핑을 간다"(대형약국) - 상세시트 구성을 분기
+            document.getElementById('bsGeneralInfo').classList.toggle('hidden', !!store.large);
+            document.getElementById('bsShoppingInfo').classList.toggle('hidden', !store.large);
 
-            const itemsEl = document.getElementById('bsItemChips');
-            if (!store.items || store.items.length === 0) {
-                itemsEl.innerHTML = `<span class="text-xs text-gray-400">등록된 취급 품목 정보가 없습니다.</span>`;
+            if (!store.large) {
+                const prescription = store.services.prescription;
+                const icon = document.getElementById('bsPrescriptionIcon');
+                const text = document.getElementById('bsPrescriptionText');
+                icon.className = `w-10 h-10 rounded-full flex items-center justify-center text-lg shrink-0 ${prescription === true ? 'bg-emerald-50' : prescription === false ? 'bg-gray-100' : 'bg-gray-50'}`;
+                text.textContent = prescription === true ? '가능' : prescription === false ? '불가' : '정보 없음';
+                text.className = `text-[11px] ${prescription === true ? 'text-emerald-600 font-bold' : 'text-gray-500'}`;
             } else {
-                itemsEl.innerHTML = store.items.map(k => ITEM_MAP[k] ? `<span class="text-xs font-bold bg-white border border-gray-200 px-2.5 py-1.5 rounded-full">${ITEM_MAP[k].emoji} ${ITEM_MAP[k].label}</span>` : '').join('');
+                const badgesEl = document.getElementById('bsServiceBadges');
+                const flags = { open365: store.hours.open365, nightService: store.hours.nightService, holidayOpen: store.hours.holidayOpen, ...store.services };
+                badgesEl.innerHTML = SERVICE_DEFS.filter(s => s.key !== 'large').map(s => {
+                    const on = !!flags[s.key];
+                    return `<div class="flex flex-col items-center py-2 rounded-xl border ${on ? 'bg-emerald-50 border-emerald-100 text-emerald-700' : 'bg-gray-50 border-gray-100 text-gray-300'}">
+                        <span class="text-base">${s.emoji}</span>
+                        <span class="text-[9px] font-bold mt-0.5 text-center leading-tight">${s.label}</span>
+                    </div>`;
+                }).join('');
+
+                const itemsEl = document.getElementById('bsItemChips');
+                if (!store.items || store.items.length === 0) {
+                    itemsEl.innerHTML = `<span class="text-xs text-gray-400">등록된 취급 품목 정보가 없습니다.</span>`;
+                } else {
+                    itemsEl.innerHTML = store.items.map(k => ITEM_MAP[k] ? `<span class="text-xs font-bold bg-white border border-gray-200 px-2.5 py-1.5 rounded-full">${ITEM_MAP[k].emoji} ${ITEM_MAP[k].label}</span>` : '').join('');
+                }
             }
 
             document.getElementById('bottomSheet').classList.add('active');
