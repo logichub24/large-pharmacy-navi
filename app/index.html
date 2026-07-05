@@ -98,6 +98,9 @@
                 </button>
             </div>
 
+            <!-- 전체/일반약국/대형약국 3분할: "약을 사러" vs "건강 쇼핑하러" 갈 곳을 바로 고르는 핵심 선택지 -->
+            <div id="typeFilterSegment" class="grid grid-cols-3 gap-0.5 mx-3 mb-1.5 bg-white/95 backdrop-blur-md rounded-full p-1 shadow-sm border border-gray-100 pointer-events-auto"></div>
+
             <!-- Info Chips: 현재 반경 기준 실시간 집계. 화면 밖으로 잘리지 않도록 2줄 그리드로 배치(항목이 늘어도 grid-cols 값만 유지하면 자동 줄바꿈됨) -->
             <div class="grid grid-cols-2 gap-0.5 px-3 pointer-events-auto pb-1">
                 <button onclick="openTabModal('openNowModal', 'opennow')" class="bg-white border border-gray-100 rounded-full pl-1 pr-2 py-0.5 flex items-center gap-1 shadow-sm hover:bg-gray-50 active:scale-95 transition">
@@ -220,7 +223,7 @@
                         <input type="text" id="searchInput" oninput="performSearch()" placeholder="약국명, 주소 또는 취급 품목 검색" class="w-full bg-emerald-50 text-gray-900 rounded-full py-2.5 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 font-bold placeholder-emerald-300">
                     </div>
                 </div>
-                <div class="grid grid-cols-3 gap-1 px-4 py-1.5 border-b border-gray-100 shrink-0" id="itemQuickChips"></div>
+                <div class="grid grid-cols-5 gap-1 px-4 py-1.5 border-b border-gray-100 shrink-0" id="itemQuickChips"></div>
                 <div class="flex-1 overflow-y-auto pb-4">
                     <div id="searchEmptyState" class="p-6 flex flex-col items-center">
                         <div class="bg-emerald-100 text-emerald-700 px-4 py-2 rounded-xl mb-4 text-xs font-black w-full text-center">💡 필요한 품목을 눌러보거나 약국명/주소를 검색하세요</div>
@@ -273,6 +276,7 @@
                         <p class="text-[10px] text-gray-500 font-bold leading-tight">서비스 조건으로 필터링해서 찾아보세요</p>
                     </div>
                 </div>
+                <div id="allListTypeSegment" class="grid grid-cols-3 gap-0.5 mx-3 mt-2 mb-1.5 bg-gray-100 rounded-full p-1 shrink-0"></div>
                 <div class="grid grid-cols-4 gap-1 px-3 py-1.5 border-b border-gray-100 shrink-0 bg-white" id="allListFilterChips"></div>
                 <div class="flex-1 overflow-y-auto p-2 pb-4 space-y-2" id="allList"></div>
             </div>
@@ -479,12 +483,15 @@
             { key: 'bp_monitor',  label: '혈압계',   emoji: '🩺' },
             { key: 'thermometer', label: '체온계',   emoji: '🌡️' },
             { key: 'baby',        label: '유아용품', emoji: '🍼' },
+            { key: 'pet',         label: '동물용품', emoji: '🐾' },
         ];
         const ITEM_MAP = Object.fromEntries(ITEM_CATS.map(c => [c.key, c]));
 
         // 서비스/운영 필터 정의 (지도 필터 + 전체목록 필터 + 상세 배지에 공통 사용)
+        // "대형약국 여부"는 별도의 전체/일반약국/대형약국 3분할 선택(pharmacyTypeFilter)으로 다루므로
+        // 여기엔 포함하지 않음 - 창고형·백화점형·메가약국 등을 모두 아우르는 "서비스 분류"이지, 다른
+        // 서비스 항목처럼 단순 on/off 토글로 다루면 "일반약국만 보기"가 불가능해지기 때문.
         const SERVICE_DEFS = [
-            { key: 'large',               label: '대형약국',     emoji: '🏥' },
             { key: 'open365',             label: '365일 운영',   emoji: '📅' },
             { key: 'nightService',        label: '심야 운영',    emoji: '🌙' },
             { key: 'holidayOpen',         label: '공휴일 운영',  emoji: '🎌' },
@@ -498,7 +505,7 @@
         ];
         const SERVICE_MAP = Object.fromEntries(SERVICE_DEFS.map(s => [s.key, s]));
         // 지도 우측 패널의 "서비스 필터" 팝업에서 우선 노출할 핵심 필터
-        const QUICK_FILTER_KEYS = ['open365', 'nightService', 'holidayOpen', 'parking', 'driveThrough', 'healthFunctionalFood', 'medicalDevice', 'large'];
+        const QUICK_FILTER_KEYS = ['open365', 'nightService', 'holidayOpen', 'parking', 'driveThrough', 'healthFunctionalFood', 'medicalDevice'];
 
         // 브이월드(국토지리정보원) API 키 - 지역/주소 검색, 위성뷰에 사용.
         // 저장소에는 커밋하지 않음(공개 git 히스토리에 실키 노출 방지). 로컬에서 직접 채워 넣거나
@@ -510,6 +517,8 @@
         let storeMarkersData = [], mapMarkers = [];
         let isUserPanning = false, currentRadius = 500, searchCircle = null;
         let mapServiceFilters = new Set(); // 지도/전체목록에 공통 적용되는 서비스 필터(AND)
+        let pharmacyTypeFilter = null; // null=전체, 'general'=일반약국, 'large'=대형약국 (3분할, 지도/전체목록 공용)
+        let mapTypeCounts = { all: 0, general: 0, large: 0 }; // 현재 반경 내 유형별 집계(세그먼트 배지용)
         let allStoresDB = [], REAL_STORES = [];
         let STORE_INDEX = [], loadedProvinceFile = null;
         let searchItemFilter = null;
@@ -782,10 +791,15 @@
 
         function passesServiceFilters(store) {
             for (const key of mapServiceFilters) {
-                if (key === 'large') { if (!store.large) return false; continue; }
                 if (store.hours[key] !== undefined) { if (!store.hours[key]) return false; continue; }
                 if (store.services[key] !== undefined) { if (!store.services[key]) return false; continue; }
             }
+            return true;
+        }
+
+        function passesTypeFilter(store) {
+            if (pharmacyTypeFilter === 'general') return !store.large;
+            if (pharmacyTypeFilter === 'large') return !!store.large;
             return true;
         }
 
@@ -795,21 +809,54 @@
             storeMarkersData = [];
             const center = map.getCenter();
 
-            allStoresDB.forEach(store => {
-                if (!passesServiceFilters(store)) return;
-                const dist = map.distance(center, [store.lat, store.lng]);
-                if (dist <= currentRadius) {
-                    storeMarkersData.push(store);
-                    const open = isOpenNow(store);
-                    const size = store.large ? 44 : 38;
-                    const iconHtml = `<div class="custom-marker ${open ? 'marker-open' : 'marker-closed'}" style="width:${size}px;height:${size}px;font-size:${store.large ? 18 : 15}px;z-index:20;">${store.large ? '🏥' : '➕'}</div>`;
-                    const icon = L.divIcon({ className: 'bg-transparent', html: iconHtml, iconSize: [size, size], iconAnchor: [size/2, size/2] });
-                    const marker = L.marker([store.lat, store.lng], { icon }).addTo(map);
-                    marker.on('click', () => openStore(store));
-                    mapMarkers.push(marker);
-                }
+            // 서비스 토글(365/심야/공휴일 등)까지만 적용한 반경 내 후보군 - 유형별 집계(세그먼트 배지)에 사용
+            const candidates = allStoresDB.filter(store => {
+                if (!passesServiceFilters(store)) return false;
+                return map.distance(center, [store.lat, store.lng]) <= currentRadius;
             });
+            mapTypeCounts = {
+                all: candidates.length,
+                general: candidates.filter(s => !s.large).length,
+                large: candidates.filter(s => s.large).length,
+            };
+
+            candidates.filter(passesTypeFilter).forEach(store => {
+                storeMarkersData.push(store);
+                const open = isOpenNow(store);
+                const size = store.large ? 44 : 38;
+                const iconHtml = `<div class="custom-marker ${open ? 'marker-open' : 'marker-closed'}" style="width:${size}px;height:${size}px;font-size:${store.large ? 18 : 15}px;z-index:20;">${store.large ? '🏥' : '➕'}</div>`;
+                const icon = L.divIcon({ className: 'bg-transparent', html: iconHtml, iconSize: [size, size], iconAnchor: [size/2, size/2] });
+                const marker = L.marker([store.lat, store.lng], { icon }).addTo(map);
+                marker.on('click', () => openStore(store));
+                mapMarkers.push(marker);
+            });
+            renderTypeFilterSegment('typeFilterSegment', mapTypeCounts, 'setPharmacyTypeFilter');
             updateDashboardChips();
+        }
+
+        // 전체/일반약국/대형약국 3분할 세그먼트 컨트롤 렌더링(지도 헤더·전체목록 모달 공용)
+        function renderTypeFilterSegment(elId, counts, onSelectFnName) {
+            const el = document.getElementById(elId);
+            if (!el) return;
+            const opts = [
+                { key: null, label: '전체', count: counts.all },
+                { key: 'general', label: '일반약국', count: counts.general },
+                { key: 'large', label: '대형약국', count: counts.large },
+            ];
+            el.innerHTML = opts.map(o => {
+                const active = pharmacyTypeFilter === o.key;
+                const arg = o.key ? `'${o.key}'` : 'null';
+                return `<button onclick="${onSelectFnName}(${arg})" class="rounded-full py-1 text-center transition ${active ? 'bg-gray-900 text-white shadow-sm' : 'text-gray-500 hover:bg-gray-50'}">
+                    <span class="block text-[10px] font-black leading-none">${o.label}</span>
+                    <span class="block text-[8px] font-bold leading-none mt-0.5 ${active ? 'text-gray-300' : 'text-gray-400'}">${o.count}곳</span>
+                </button>`;
+            }).join('');
+        }
+
+        function setPharmacyTypeFilter(key) {
+            pharmacyTypeFilter = key;
+            loadStoresInRadius();
+            if (document.getElementById('allListModal').classList.contains('active')) renderAllList();
         }
 
         function updateDashboardChips() {
@@ -1002,7 +1049,7 @@
             } else {
                 const badgesEl = document.getElementById('bsServiceBadges');
                 const flags = { open365: store.hours.open365, nightService: store.hours.nightService, holidayOpen: store.hours.holidayOpen, ...store.services };
-                badgesEl.innerHTML = SERVICE_DEFS.filter(s => s.key !== 'large').map(s => {
+                badgesEl.innerHTML = SERVICE_DEFS.map(s => {
                     const on = !!flags[s.key];
                     return `<div class="flex flex-col items-center py-2 rounded-xl border ${on ? 'bg-emerald-50 border-emerald-100 text-emerald-700' : 'bg-gray-50 border-gray-100 text-gray-300'}">
                         <span class="text-base">${s.emoji}</span>
@@ -1112,7 +1159,7 @@
         // ── 품목/약국 검색 ───────────────────────────────────────────────
         function renderItemQuickChips() {
             document.getElementById('itemQuickChips').innerHTML = ITEM_CATS.map(c => `
-                <button onclick="quickSearchItem('${c.key}')" id="isf-${c.key}" class="text-[10px] font-bold px-1.5 py-1 rounded-full border border-gray-200 text-gray-600 bg-white truncate text-center active:scale-95 transition">${c.emoji} ${c.label}</button>
+                <button onclick="quickSearchItem('${c.key}')" id="isf-${c.key}" class="text-[10px] font-bold px-0.5 py-1 rounded-full border border-gray-200 text-gray-600 bg-white truncate text-center active:scale-95 transition">${c.emoji} ${c.label}</button>
             `).join('');
         }
         function quickSearchItem(key) {
@@ -1204,7 +1251,6 @@
         }
         function passesAllListFilters(store) {
             for (const key of allListFilters) {
-                if (key === 'large') { if (!store.large) return false; continue; }
                 if (store.hours[key] !== undefined) { if (!store.hours[key]) return false; continue; }
                 if (store.services[key] !== undefined) { if (!store.services[key]) return false; continue; }
             }
@@ -1212,7 +1258,13 @@
         }
         function renderAllList() {
             const list = document.getElementById('allList');
-            let items = allStoresDB.filter(passesAllListFilters);
+            const serviceFiltered = allStoresDB.filter(passesAllListFilters);
+            renderTypeFilterSegment('allListTypeSegment', {
+                all: serviceFiltered.length,
+                general: serviceFiltered.filter(s => !s.large).length,
+                large: serviceFiltered.filter(s => s.large).length,
+            }, 'setPharmacyTypeFilter');
+            let items = serviceFiltered.filter(passesTypeFilter);
             if (map) items = [...items].sort((a, b) => map.distance(map.getCenter(), [a.lat, a.lng]) - map.distance(map.getCenter(), [b.lat, b.lng]));
             if (items.length === 0) {
                 list.innerHTML = `<div class="p-8 text-center text-gray-400 font-medium">조건에 맞는 약국이 없습니다.</div>`;
