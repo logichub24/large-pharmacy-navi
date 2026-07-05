@@ -5,6 +5,7 @@
   "type": "commonjs",
   "scripts": {
     "sync:stores": "node scripts/pharmacyLocations.js",
+    "apply:overrides": "node scripts/applyOverrides.js",
     "build:toss": "node scripts/build-toss.js"
   },
   "dependencies": {
