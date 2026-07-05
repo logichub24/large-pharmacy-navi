@@ -736,6 +736,7 @@
         }
 
         async function goToLocation(lat, lng) {
+            map.invalidateSize(); // 초기 로딩 타이밍에 따라 지도 크기가 아직 0일 수 있어 방어적으로 갱신
             map.setView([lat, lng], 16);
             await loadStoresForLocation(lat, lng);
             searchInCurrentArea();
@@ -900,6 +901,7 @@
             currentRadius = r;
             highlightRadiusButton(r);
             searchCircle.setRadius(r);
+            map.invalidateSize(); // 초기 로딩 타이밍에 따라 지도 크기가 아직 0일 수 있어 방어적으로 갱신
             map.flyToBounds(searchCircle.getBounds(), { padding: [20, 20], duration: 0.5 });
             setTimeout(() => { loadStoresInRadius(); showToast(`검색 반경이 ${r}m로 변경되었습니다.`); }, 600);
         }
@@ -966,6 +968,7 @@
             if (!item) return;
             closeLocationSearch();
             showToast(`'${item.title}' 위치로 이동합니다.`);
+            map.invalidateSize(); // 초기 로딩 타이밍에 따라 지도 크기가 아직 0일 수 있어 방어적으로 갱신
             map.setView([item.lat, item.lng], 16);
             await loadStoresForLocation(item.lat, item.lng);
             searchCircle.setLatLng([item.lat, item.lng]);

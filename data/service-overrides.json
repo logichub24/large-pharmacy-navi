@@ -1,1 +1,52 @@
-{}
+{
+  "C2110066": {
+    "large": true,
+    "_source": "성남 메가팩토리약국(창고형) - 데일리팜/약사공론 보도 확인, 2024~2025 개설",
+    "services": { "healthFunctionalFood": true }
+  },
+  "C2110142": {
+    "large": true,
+    "_source": "메디타운약국(고양, 창고형) - 창고형 약국 리스트 보도 확인",
+    "services": { "healthFunctionalFood": true }
+  },
+  "C1301923": {
+    "large": true,
+    "_source": "365큰약국(대구 수성구, 창고형) - 창고형 약국 리스트 보도 확인",
+    "services": { "healthFunctionalFood": true }
+  },
+  "C1111013": {
+    "large": true,
+    "_source": "메디킹덤약국(서울 용산, 용산전자랜드 내 창고형) - 창고형 약국 리스트 보도 확인",
+    "services": { "healthFunctionalFood": true }
+  },
+  "C1111014": {
+    "large": true,
+    "_source": "르메디약국(서울 동대문, 창고형) - 창고형 약국 리스트 보도 확인",
+    "services": { "healthFunctionalFood": true }
+  },
+  "C1110532": {
+    "large": true,
+    "_source": "강서제일큰약국(서울 강서, 창고형) - 창고형 약국 리스트 보도 확인",
+    "services": { "healthFunctionalFood": true }
+  },
+  "C1201516": {
+    "large": true,
+    "_source": "동래메가약국(부산 동래, 메가마트 내 창고형) - 창고형 약국 리스트 보도 확인",
+    "services": { "healthFunctionalFood": true }
+  },
+  "C1601467": {
+    "large": true,
+    "_source": "알약트레이더스약국(대전 서구, 창고형) - 창고형 약국 리스트 보도 확인",
+    "services": { "healthFunctionalFood": true }
+  },
+  "C2110227": {
+    "large": true,
+    "_source": "케이셀렉트 하남차약국(경기 하남, 창고형) - 창고형 약국 리스트 보도 확인",
+    "services": { "healthFunctionalFood": true }
+  },
+  "C2110277": {
+    "large": true,
+    "_source": "안양온약국/올케어아울렛(경기 안양, 창고형) - 창고형 약국 리스트 보도 확인",
+    "services": { "healthFunctionalFood": true }
+  }
+}
