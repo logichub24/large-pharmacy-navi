@@ -98,31 +98,31 @@
                 </button>
             </div>
 
-            <!-- Info Chips: 현재 반경 기준 실시간 집계. 화면 밖으로 잘리지 않도록 2줄 그리드로 배치 -->
-            <div class="grid grid-cols-2 gap-1 px-3 pointer-events-auto pb-1.5">
-                <button onclick="openTabModal('openNowModal', 'opennow')" class="bg-white border border-gray-100 rounded-full pl-1 pr-3 py-0.5 flex items-center gap-1.5 shadow-sm hover:bg-gray-50 active:scale-95 transition">
-                    <div class="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center text-[9px] shrink-0">🟢</div>
+            <!-- Info Chips: 현재 반경 기준 실시간 집계. 화면 밖으로 잘리지 않도록 2줄 그리드로 배치(항목이 늘어도 grid-cols 값만 유지하면 자동 줄바꿈됨) -->
+            <div class="grid grid-cols-2 gap-0.5 px-3 pointer-events-auto pb-1">
+                <button onclick="openTabModal('openNowModal', 'opennow')" class="bg-white border border-gray-100 rounded-full pl-1 pr-2 py-0.5 flex items-center gap-1 shadow-sm hover:bg-gray-50 active:scale-95 transition">
+                    <div class="w-4 h-4 rounded-full bg-emerald-100 flex items-center justify-center text-[8px] shrink-0">🟢</div>
                     <div class="text-left flex flex-col min-w-0">
                         <span class="text-[10px] font-black text-gray-900 leading-none truncate">지금 영업중</span>
                         <span id="chipOpenNow" class="text-[8px] text-emerald-600 font-bold leading-none mt-0.5">0곳</span>
                     </div>
                 </button>
-                <button onclick="quickFilterChip('open365')" class="bg-white border border-gray-100 rounded-full pl-1 pr-3 py-0.5 flex items-center gap-1.5 shadow-sm hover:bg-gray-50 active:scale-95 transition">
-                    <div class="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center text-[9px] shrink-0">📅</div>
+                <button onclick="quickFilterChip('open365')" class="bg-white border border-gray-100 rounded-full pl-1 pr-2 py-0.5 flex items-center gap-1 shadow-sm hover:bg-gray-50 active:scale-95 transition">
+                    <div class="w-4 h-4 rounded-full bg-blue-100 flex items-center justify-center text-[8px] shrink-0">📅</div>
                     <div class="text-left flex flex-col min-w-0">
                         <span class="text-[10px] font-black text-gray-900 leading-none truncate">365일 운영</span>
                         <span id="chip365" class="text-[8px] text-blue-600 font-bold leading-none mt-0.5">0곳</span>
                     </div>
                 </button>
-                <button onclick="quickFilterChip('nightService')" class="bg-white border border-gray-100 rounded-full pl-1 pr-3 py-0.5 flex items-center gap-1.5 shadow-sm hover:bg-gray-50 active:scale-95 transition">
-                    <div class="w-5 h-5 rounded-full bg-indigo-100 flex items-center justify-center text-[9px] shrink-0">🌙</div>
+                <button onclick="quickFilterChip('nightService')" class="bg-white border border-gray-100 rounded-full pl-1 pr-2 py-0.5 flex items-center gap-1 shadow-sm hover:bg-gray-50 active:scale-95 transition">
+                    <div class="w-4 h-4 rounded-full bg-indigo-100 flex items-center justify-center text-[8px] shrink-0">🌙</div>
                     <div class="text-left flex flex-col min-w-0">
                         <span class="text-[10px] font-black text-gray-900 leading-none truncate">심야 운영</span>
                         <span id="chipNight" class="text-[8px] text-indigo-600 font-bold leading-none mt-0.5">0곳</span>
                     </div>
                 </button>
-                <button onclick="quickFilterChip('holidayOpen')" class="bg-white border border-gray-100 rounded-full pl-1 pr-3 py-0.5 flex items-center gap-1.5 shadow-sm hover:bg-gray-50 active:scale-95 transition">
-                    <div class="w-5 h-5 rounded-full bg-rose-100 flex items-center justify-center text-[9px] shrink-0">🎌</div>
+                <button onclick="quickFilterChip('holidayOpen')" class="bg-white border border-gray-100 rounded-full pl-1 pr-2 py-0.5 flex items-center gap-1 shadow-sm hover:bg-gray-50 active:scale-95 transition">
+                    <div class="w-4 h-4 rounded-full bg-rose-100 flex items-center justify-center text-[8px] shrink-0">🎌</div>
                     <div class="text-left flex flex-col min-w-0">
                         <span class="text-[10px] font-black text-gray-900 leading-none truncate">공휴일 운영</span>
                         <span id="chipHoliday" class="text-[8px] text-rose-600 font-bold leading-none mt-0.5">0곳</span>
@@ -290,6 +290,7 @@
                         <div class="flex items-center gap-1.5 flex-wrap">
                             <h2 id="bsStoreName" class="text-base font-black text-gray-900 truncate">약국명</h2>
                             <span id="bsOpenBadge" class="text-[10px] font-black px-1.5 py-0.5 rounded shrink-0">영업중</span>
+                            <span id="bsTypeBadge" class="text-[10px] font-black px-1.5 py-0.5 rounded shrink-0">대형약국</span>
                         </div>
                         <p id="bsStoreAddr" class="text-[11px] text-gray-500 mt-0.5 truncate">주소</p>
                         <p id="bsStoreHours" class="text-[11px] text-gray-500 mt-0.5"></p>
@@ -963,6 +964,10 @@
             badge.innerText = open ? '영업중' : '영업종료';
             badge.className = `text-[10px] font-black px-1.5 py-0.5 rounded shrink-0 ${open ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-200 text-gray-500'}`;
 
+            const typeBadge = document.getElementById('bsTypeBadge');
+            typeBadge.innerText = store.large ? '대형약국' : '일반약국';
+            typeBadge.className = `text-[10px] font-black px-1.5 py-0.5 rounded shrink-0 ${store.large ? 'bg-blue-50 text-blue-600' : 'bg-gray-100 text-gray-500'}`;
+
             renderFavButton();
 
             const badgesEl = document.getElementById('bsServiceBadges');
@@ -1050,7 +1055,7 @@
                         <div class="flex items-center gap-1.5 flex-wrap">
                             <h4 class="font-black text-sm text-gray-900 truncate">${store.name}</h4>
                             <span class="text-[9px] font-black px-1.5 py-0.5 rounded ${open ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-200 text-gray-500'}">${open ? '영업중' : '영업종료'}</span>
-                            ${store.large ? '<span class="text-[9px] font-black px-1.5 py-0.5 rounded bg-blue-50 text-blue-600">대형</span>' : ''}
+                            <span class="text-[9px] font-black px-1.5 py-0.5 rounded ${store.large ? 'bg-blue-50 text-blue-600' : 'bg-gray-100 text-gray-500'}">${store.large ? '대형' : '일반'}</span>
                         </div>
                         <p class="text-[11px] text-gray-500 mt-0.5">${formatHoursText(store)}${dist !== null ? ` · 약 ${dist}m` : ''}</p>
                         <div class="flex flex-wrap gap-1 mt-1.5">${itemChips}</div>
