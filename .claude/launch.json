@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "large-pharmacy-navi",
+      "runtimeExecutable": "powershell",
+      "runtimeArgs": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", "Set-Location -LiteralPath 'D:\\APP\\대형약국'; npx.cmd serve -l 5501 'app'"],
+      "port": 5501
+    }
+  ]
+}

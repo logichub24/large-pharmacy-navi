@@ -1,0 +1,16 @@
+{
+  "name": "large-pharmacy-navi",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "sync:stores": "node scripts/pharmacyLocations.js",
+    "build:toss": "node scripts/build-toss.js"
+  },
+  "dependencies": {
+    "axios": "^1.7.7"
+  },
+  "devDependencies": {
+    "@apps-in-toss/web-framework": "^2.9.2"
+  }
+}

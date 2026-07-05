@@ -1,0 +1,35 @@
+name: Sync pharmacy locations
+
+on:
+  schedule:
+    # 03:00 KST = 18:00 UTC (전날)
+    - cron: '0 18 * * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - run: npm install
+
+      - name: 약국 위치·운영시간 동기화 (일일 API 할당량만큼 이어서 진행)
+        env:
+          EGEN_API_KEY: ${{ secrets.EGEN_API_KEY }}
+        run: npm run sync:stores
+
+      - name: 변경사항 커밋
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add "app/stores/" "scripts/.pharmacy-sync-cache.json"
+          git diff --cached --quiet || git commit -m "chore: 약국 위치 데이터 동기화 $(date -u +%Y-%m-%d)"
+          git push

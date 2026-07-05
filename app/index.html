@@ -1,0 +1,1262 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>대형약국</title>
+    <link rel="icon" type="image/svg+xml" href="icon.svg">
+    <link rel="apple-touch-icon" href="icon.svg">
+    <script>if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});</script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        html, body { width: 100%; height: 100%; margin: 0; padding: 0; overflow: hidden; background-color: #e5e7eb; display: flex; justify-content: center; align-items: center; }
+
+        #app-container {
+            width: 100%; height: 100%; margin: 0 auto;
+            background-color: #f3f4f6; position: relative; overflow: hidden;
+        }
+
+        /* PC 환경 모바일 뷰어 시뮬레이션 */
+        @media (min-width: 431px) {
+            #app-container {
+                width: 390px; height: 844px; max-height: 92vh; border-radius: 40px;
+                box-shadow: 0 25px 50px -12px rgba(0,0,0,0.3);
+            }
+        }
+
+        #map { height: 100%; width: 100%; z-index: 10; }
+
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* 마커 디자인: 영업중=초록, 영업종료=회색. 대형약국은 살짝 크게. */
+        .custom-marker {
+            display: flex; align-items: center; justify-content: center;
+            font-weight: bold; color: white; border-radius: 50%;
+            border: 2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3); position: relative;
+            transition: transform 0.2s;
+        }
+        .custom-marker:hover { transform: scale(1.1); z-index: 50 !important; }
+        .marker-open { background-color: #059669; }
+        .marker-closed { background-color: #9ca3af; }
+
+        .badge-count {
+            position: absolute; top: -5px; right: -5px; background-color: #EF4444;
+            color: white; font-size: 10px; padding: 2px 5px; border-radius: 10px; border: 1px solid white;
+        }
+
+        .bottom-sheet {
+            position: absolute; bottom: 0; left: 0; width: 100%; height: 78vh;
+            background: white; border-top-left-radius: 24px; border-top-right-radius: 24px;
+            box-shadow: 0 -10px 25px rgba(0,0,0,0.15);
+            transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 5000; display: flex; flex-direction: column;
+        }
+        .bottom-sheet.active { transform: translateY(0); }
+        .chip-btn.active { background-color: #059669; color: white; border-color: #059669; }
+        body.in-toss-app #titlePill { display: none; }
+
+        .tab-modal {
+            position: absolute; top: 0; left: 0; right: 0; bottom: 60px;
+            z-index: 3000; display: flex; flex-direction: column; justify-content: flex-end;
+            pointer-events: none; overflow: hidden;
+        }
+        .tab-modal.active { pointer-events: auto; z-index: 3100; }
+
+        .tab-modal-bg {
+            position: absolute; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(4px);
+            opacity: 0; transition: opacity 0.3s ease; pointer-events: none;
+        }
+        .tab-modal.active .tab-modal-bg { opacity: 1; pointer-events: auto; }
+
+        .tab-modal-content {
+            position: relative; background: #f9fafb; width: 100%; height: 88%;
+            border-radius: 24px 24px 0 0; display: flex; flex-direction: column;
+            transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 -10px 25px rgba(0,0,0,0.2);
+        }
+        .tab-modal.active .tab-modal-content { transform: translateY(0); }
+    </style>
+</head>
+<body class="font-sans antialiased text-gray-800 selection:bg-emerald-100">
+
+    <div id="app-container">
+
+        <!-- 상단 미니 헤더 -->
+        <div class="absolute top-0 left-0 w-full z-[100] pointer-events-none flex flex-col pt-3">
+            <div class="px-3 pb-2 flex items-center justify-between">
+                <div id="titlePill" class="bg-white/95 backdrop-blur-md px-4 py-2.5 rounded-full shadow-sm border border-gray-100 pointer-events-auto inline-flex items-center gap-2">
+                    <h1 class="text-sm font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-teal-600 tracking-tight leading-none m-0">대형약국</h1>
+                    <div class="w-px h-3 bg-gray-200"></div>
+                    <p class="text-[10px] text-gray-500 font-bold leading-none m-0 pt-0.5">내 주변 약국 안내</p>
+                </div>
+                <button onclick="openSettings()" class="w-9 h-9 bg-white/95 backdrop-blur-md rounded-full shadow-sm border border-gray-100 flex items-center justify-center text-gray-500 pointer-events-auto hover:bg-gray-50 active:scale-95 transition shrink-0 ml-auto">
+                    <i class="fa-solid fa-gear text-sm"></i>
+                </button>
+            </div>
+
+            <!-- Scrollable Info Chips: 현재 반경 기준 실시간 집계 -->
+            <div class="flex overflow-x-auto hide-scrollbar px-3 gap-2 pointer-events-auto pb-2">
+                <button onclick="openTabModal('openNowModal', 'opennow')" class="bg-white border border-gray-100 rounded-full pl-1 pr-3 py-1 flex items-center gap-1.5 shadow-sm shrink-0 hover:bg-gray-50 active:scale-95 transition">
+                    <div class="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center text-[10px]">🟢</div>
+                    <div class="text-left flex flex-col">
+                        <span class="text-[10px] font-black text-gray-900 leading-none mt-0.5">지금 영업중</span>
+                        <span id="chipOpenNow" class="text-[8px] text-emerald-600 font-bold leading-none mt-1">0곳</span>
+                    </div>
+                </button>
+                <button onclick="quickFilterChip('open365')" class="bg-white border border-gray-100 rounded-full pl-1 pr-3 py-1 flex items-center gap-1.5 shadow-sm shrink-0 hover:bg-gray-50 active:scale-95 transition">
+                    <div class="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-[10px]">📅</div>
+                    <div class="text-left flex flex-col">
+                        <span class="text-[10px] font-black text-gray-900 leading-none mt-0.5">365일 운영</span>
+                        <span id="chip365" class="text-[8px] text-blue-600 font-bold leading-none mt-1">0곳</span>
+                    </div>
+                </button>
+                <button onclick="quickFilterChip('nightService')" class="bg-white border border-gray-100 rounded-full pl-1 pr-3 py-1 flex items-center gap-1.5 shadow-sm shrink-0 hover:bg-gray-50 active:scale-95 transition">
+                    <div class="w-6 h-6 rounded-full bg-indigo-100 flex items-center justify-center text-[10px]">🌙</div>
+                    <div class="text-left flex flex-col">
+                        <span class="text-[10px] font-black text-gray-900 leading-none mt-0.5">심야 운영</span>
+                        <span id="chipNight" class="text-[8px] text-indigo-600 font-bold leading-none mt-1">0곳</span>
+                    </div>
+                </button>
+                <button onclick="quickFilterChip('holidayOpen')" class="bg-white border border-gray-100 rounded-full pl-1 pr-3 py-1 flex items-center gap-1.5 shadow-sm shrink-0 hover:bg-gray-50 active:scale-95 transition">
+                    <div class="w-6 h-6 rounded-full bg-rose-100 flex items-center justify-center text-[10px]">🎌</div>
+                    <div class="text-left flex flex-col">
+                        <span class="text-[10px] font-black text-gray-900 leading-none mt-0.5">공휴일 운영</span>
+                        <span id="chipHoliday" class="text-[8px] text-rose-600 font-bold leading-none mt-1">0곳</span>
+                    </div>
+                </button>
+            </div>
+        </div>
+
+        <!-- 우측 맵 컨트롤 패널 -->
+        <div id="mapControlPanel" class="absolute right-3 bottom-[120px] z-[400] flex flex-col gap-2 pointer-events-none items-end">
+            <!-- 서비스 필터 -->
+            <button onclick="openServiceFilterModal()" id="serviceFilterBtn" class="w-[38px] h-[38px] bg-white/95 backdrop-blur-md rounded-full shadow-md border border-gray-100 flex items-center justify-center text-gray-600 pointer-events-auto hover:bg-gray-50 active:scale-95 transition relative" title="서비스 필터">
+                <i class="fa-solid fa-sliders text-lg"></i>
+                <span id="filterBadge" class="badge-count hidden">0</span>
+            </button>
+            <!-- 리스트/지도 뷰 토글 -->
+            <button id="listViewToggleBtn" onclick="toggleListView()" class="w-[38px] h-[38px] bg-white/95 backdrop-blur-md rounded-full shadow-md border border-gray-100 flex items-center justify-center text-gray-600 pointer-events-auto hover:bg-gray-50 active:scale-95 transition" title="리스트 뷰">
+                <i class="fa-solid fa-list text-lg"></i>
+            </button>
+            <!-- 지역/주소 검색 -->
+            <button onclick="openLocationSearch()" class="w-[38px] h-[38px] bg-white/95 backdrop-blur-md rounded-full shadow-md border border-gray-100 flex items-center justify-center text-gray-600 pointer-events-auto hover:bg-gray-50 active:scale-95 transition">
+                <i class="fa-solid fa-magnifying-glass text-lg"></i>
+            </button>
+            <!-- 위성 보기 토글 -->
+            <button id="satelliteToggleBtn" onclick="toggleSatelliteView()" class="w-[38px] h-[38px] bg-white/95 backdrop-blur-md rounded-full shadow-md border border-gray-100 flex items-center justify-center text-gray-600 pointer-events-auto hover:bg-gray-50 active:scale-95 transition">
+                <i class="fa-solid fa-satellite text-lg"></i>
+            </button>
+            <!-- GPS Button -->
+            <button onclick="findMyLocation()" class="w-[38px] h-[38px] bg-white/95 backdrop-blur-md rounded-full shadow-md border border-gray-100 flex items-center justify-center text-emerald-600 pointer-events-auto hover:bg-gray-50 active:scale-95 transition">
+                <i class="fa-solid fa-location-crosshairs text-lg"></i>
+            </button>
+
+            <!-- Radius Selector (2×2 그리드) -->
+            <div class="bg-white/95 backdrop-blur-md rounded-2xl shadow-md border border-gray-100 grid grid-cols-2 overflow-hidden pointer-events-auto w-[76px]">
+                <button onclick="setRadius(300)" id="rad300" class="text-[9px] font-black py-2 w-full border-b border-r border-gray-100 text-gray-500 hover:bg-gray-50 transition">300m</button>
+                <button onclick="setRadius(500)" id="rad500" class="text-[9px] font-black py-2 w-full border-b border-gray-100 text-emerald-600 bg-emerald-50 transition">500m</button>
+                <button onclick="setRadius(1000)" id="rad1000" class="text-[9px] font-black py-2 w-full border-r border-gray-100 text-gray-500 hover:bg-gray-50 transition">1km</button>
+                <button onclick="setRadius(2000)" id="rad2000" class="text-[9px] font-black py-2 w-full text-gray-500 hover:bg-gray-50 transition">2km</button>
+            </div>
+        </div>
+
+        <!-- Re-search Area Button -->
+        <button id="reSearchBtn" onclick="searchInCurrentArea()" class="absolute bottom-[110px] left-1/2 transform -translate-x-1/2 z-[500] bg-gray-900 text-white px-4 py-2.5 rounded-full text-[12px] font-bold shadow-[0_4px_15px_rgba(0,0,0,0.3)] flex items-center gap-2 transition-all duration-300 opacity-0 pointer-events-none translate-y-[10px]">
+            <i class="fa-solid fa-rotate-right text-emerald-400"></i> 이 지역 재검색
+        </button>
+
+        <!-- Ad Banner (Above Nav) -->
+        <div class="absolute bottom-[60px] left-0 w-full bg-white/90 backdrop-blur-sm border-t border-gray-100 p-1.5 z-[250] flex justify-center items-center pointer-events-none">
+            <div id="adBannerSlot" class="bg-gray-100 w-full max-w-sm h-10 flex items-center justify-center rounded-lg border border-gray-200 cursor-pointer pointer-events-auto" onclick="showToast('광고 페이지로 이동합니다.')">
+                <span class="text-[10px] text-gray-400 font-bold">Google Ad: 건강기능식품 특가</span>
+            </div>
+        </div>
+
+        <!-- 하단 네비게이션 바 -->
+        <nav class="absolute bottom-0 left-0 w-full h-[60px] bg-white border-t border-gray-200 z-[4000] flex justify-around items-center px-1 pb-safe shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
+            <button id="nav-home" onclick="goHome()" class="nav-btn flex flex-col items-center justify-center w-full h-full text-emerald-600 transition">
+                <i class="fa-solid fa-map-location-dot text-[18px] mb-1"></i>
+                <span class="text-[9px] font-black tracking-tight">지도</span>
+            </button>
+            <button id="nav-search" onclick="openTabModal('searchModal', 'search')" class="nav-btn flex flex-col items-center justify-center w-full h-full text-gray-400 hover:text-gray-900 transition">
+                <i class="fa-solid fa-magnifying-glass text-[18px] mb-1"></i>
+                <span class="text-[9px] font-bold tracking-tight">품목검색</span>
+            </button>
+            <button id="nav-opennow" onclick="openTabModal('openNowModal', 'opennow')" class="nav-btn flex flex-col items-center justify-center w-full h-full text-gray-400 hover:text-gray-900 transition">
+                <i class="fa-solid fa-store text-[18px] mb-1"></i>
+                <span class="text-[9px] font-bold tracking-tight">영업중</span>
+            </button>
+            <button id="nav-favorites" onclick="openTabModal('favoritesModal', 'favorites')" class="nav-btn flex flex-col items-center justify-center w-full h-full text-gray-400 hover:text-gray-900 transition relative">
+                <i class="fa-solid fa-heart text-[18px] mb-1"></i>
+                <span class="text-[9px] font-bold tracking-tight">즐겨찾기</span>
+                <span id="favBadge" class="absolute top-1.5 right-[15px] bg-rose-500 text-white text-[8px] font-bold w-3.5 h-3.5 flex items-center justify-center rounded-full hidden shadow-sm ring-1 ring-white">0</span>
+            </button>
+            <button id="nav-alllist" onclick="openTabModal('allListModal', 'alllist')" class="nav-btn flex flex-col items-center justify-center w-full h-full text-gray-400 hover:text-gray-900 transition">
+                <i class="fa-solid fa-list-ul text-[18px] mb-1"></i>
+                <span class="text-[9px] font-bold tracking-tight">전체목록</span>
+            </button>
+        </nav>
+
+        <!-- Map Container -->
+        <div id="map"></div>
+
+        <div id="toast" class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-gray-900/90 backdrop-blur-md text-white px-5 py-3 rounded-2xl text-sm font-medium shadow-2xl z-[6000] opacity-0 pointer-events-none transition-all duration-300 flex flex-col items-center gap-2 text-center max-w-[80%] border border-gray-700">
+            <i class="fa-solid fa-bell text-yellow-400 text-2xl mb-1"></i>
+            <span id="toastMsg">알림 메시지</span>
+        </div>
+
+        <!-- 1. 품목/약국 검색 모달 -->
+        <div id="searchModal" class="tab-modal">
+            <div class="tab-modal-bg" onclick="goHome()"></div>
+            <div class="tab-modal-content">
+                <div class="p-4 border-b border-gray-100 flex items-center gap-3 bg-white sticky top-0 z-20 shrink-0 rounded-t-[24px]">
+                    <button onclick="goHome()" class="text-gray-500 hover:text-gray-800 p-2"><i class="fa-solid fa-arrow-left text-xl"></i></button>
+                    <div class="flex-1 relative">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 transform -translate-y-1/2 text-emerald-500"></i>
+                        <input type="text" id="searchInput" oninput="performSearch()" placeholder="약국명, 주소 또는 취급 품목 검색" class="w-full bg-emerald-50 text-gray-900 rounded-full py-2.5 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 font-bold placeholder-emerald-300">
+                    </div>
+                </div>
+                <div class="flex gap-2 px-4 py-2 border-b border-gray-100 overflow-x-auto hide-scrollbar shrink-0" id="itemQuickChips"></div>
+                <div class="flex-1 overflow-y-auto pb-4">
+                    <div id="searchEmptyState" class="p-6 flex flex-col items-center">
+                        <div class="bg-emerald-100 text-emerald-700 px-4 py-2 rounded-xl mb-4 text-xs font-black w-full text-center">💡 필요한 품목을 눌러보거나 약국명/주소를 검색하세요</div>
+                    </div>
+                    <div id="searchResultsList" class="hidden space-y-2 p-2"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. 즐겨찾기 모달 -->
+        <div id="favoritesModal" class="tab-modal">
+            <div class="tab-modal-bg" onclick="goHome()"></div>
+            <div class="tab-modal-content">
+                <div class="p-4 border-b border-gray-100 flex items-center gap-3 bg-white sticky top-0 z-20 shrink-0 rounded-t-[24px]">
+                    <button onclick="goHome()" class="text-gray-500 hover:text-gray-800 p-2"><i class="fa-solid fa-arrow-left text-xl"></i></button>
+                    <div class="flex-1">
+                        <h3 class="font-black text-lg text-gray-900"><i class="fa-solid fa-heart text-rose-500 mr-1"></i> 즐겨찾는 약국</h3>
+                        <p class="text-[10px] text-gray-500 font-bold leading-tight">자주 찾는 대형약국을 모아보세요.</p>
+                    </div>
+                </div>
+                <div class="flex-1 overflow-y-auto pb-4">
+                    <div id="favoritesList" class="p-2 space-y-2"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. 지금 영업중 랭킹 모달 -->
+        <div id="openNowModal" class="tab-modal">
+            <div class="tab-modal-bg" onclick="goHome()"></div>
+            <div class="tab-modal-content">
+                <div class="p-4 border-b border-gray-100 flex items-center gap-3 bg-white sticky top-0 z-20 shrink-0 rounded-t-[24px]">
+                    <button onclick="goHome()" class="text-gray-500 hover:text-gray-800 p-2"><i class="fa-solid fa-arrow-left text-xl"></i></button>
+                    <div>
+                        <h3 class="font-black text-lg text-gray-900"><i class="fa-solid fa-store text-emerald-500 mr-1"></i> 주변 영업중 약국</h3>
+                        <p class="text-[10px] text-gray-500 font-bold leading-tight">현재 반경 내, 영업중인 약국을 가까운 순으로 표시</p>
+                    </div>
+                </div>
+                <div class="flex-1 overflow-y-auto p-4 pb-4 space-y-3" id="openNowList"></div>
+            </div>
+        </div>
+
+        <!-- 4. 전체 목록 모달 (서비스 필터 포함) -->
+        <div id="allListModal" class="tab-modal">
+            <div class="tab-modal-bg" onclick="goHome()"></div>
+            <div class="tab-modal-content">
+                <div class="p-4 border-b border-gray-100 flex items-center gap-3 bg-white sticky top-0 z-20 shrink-0 rounded-t-[24px]">
+                    <button onclick="goHome()" class="text-gray-500 hover:text-gray-800 p-2"><i class="fa-solid fa-arrow-left text-xl"></i></button>
+                    <div class="flex-1">
+                        <h3 class="font-black text-lg text-gray-900"><i class="fa-solid fa-list-ul text-emerald-500 mr-1"></i> 전체 약국 목록</h3>
+                        <p class="text-[10px] text-gray-500 font-bold leading-tight">서비스 조건으로 필터링해서 찾아보세요</p>
+                    </div>
+                </div>
+                <div class="flex gap-2 px-3 py-2 border-b border-gray-100 overflow-x-auto hide-scrollbar shrink-0 bg-white" id="allListFilterChips"></div>
+                <div class="flex-1 overflow-y-auto p-2 pb-4 space-y-2" id="allList"></div>
+            </div>
+        </div>
+
+        <!-- 매장 상세 바텀 시트 -->
+        <div id="bottomSheet" class="bottom-sheet pointer-events-auto">
+            <div class="w-full flex justify-center py-3 cursor-pointer shrink-0" onclick="closeSheet()">
+                <div class="w-12 h-1.5 bg-gray-300 rounded-full"></div>
+            </div>
+            <div class="px-5 pb-3 border-b border-gray-100 shrink-0 flex justify-between items-start">
+                <div class="flex items-start gap-3 min-w-0">
+                    <div id="bsStoreLogo" class="w-11 h-11 rounded-full bg-emerald-100 flex items-center justify-center font-black text-emerald-700 text-lg shadow-inner shrink-0">🏥</div>
+                    <div class="min-w-0">
+                        <div class="flex items-center gap-1.5 flex-wrap">
+                            <h2 id="bsStoreName" class="text-base font-black text-gray-900 truncate">약국명</h2>
+                            <span id="bsOpenBadge" class="text-[10px] font-black px-1.5 py-0.5 rounded shrink-0">영업중</span>
+                        </div>
+                        <p id="bsStoreAddr" class="text-[11px] text-gray-500 mt-0.5 truncate">주소</p>
+                        <p id="bsStoreHours" class="text-[11px] text-gray-500 mt-0.5"></p>
+                    </div>
+                </div>
+                <button onclick="toggleFavoriteActive()" id="bsFavBtn" class="p-1.5 shrink-0"><i class="fa-regular fa-heart text-2xl text-gray-300"></i></button>
+            </div>
+            <div class="px-5 py-2.5 border-b border-gray-100 shrink-0 bg-white grid grid-cols-4 gap-1.5">
+                <button onclick="callStore()" class="bg-emerald-50 text-emerald-700 p-2 rounded-xl flex flex-col items-center justify-center hover:bg-emerald-100 transition active:scale-95">
+                    <i class="fa-solid fa-phone text-base"></i>
+                    <span class="text-[9px] font-bold mt-1">전화</span>
+                </button>
+                <button onclick="openKakaoDirections()" class="bg-blue-50 text-blue-600 p-2 rounded-xl flex flex-col items-center justify-center hover:bg-blue-100 transition active:scale-95">
+                    <i class="fa-solid fa-route text-base"></i>
+                    <span class="text-[9px] font-bold mt-1">길찾기</span>
+                </button>
+                <button onclick="openNaviChooser()" class="bg-indigo-50 text-indigo-600 p-2 rounded-xl flex flex-col items-center justify-center hover:bg-indigo-100 transition active:scale-95">
+                    <i class="fa-solid fa-diamond-turn-right text-base"></i>
+                    <span class="text-[9px] font-bold mt-1">내비연결</span>
+                </button>
+                <button onclick="closeSheet()" class="bg-gray-100 text-gray-500 p-2 rounded-xl flex flex-col items-center justify-center hover:bg-gray-200 transition active:scale-95">
+                    <i class="fa-solid fa-xmark text-base"></i>
+                    <span class="text-[9px] font-bold mt-1">닫기</span>
+                </button>
+            </div>
+            <div class="flex-1 overflow-y-auto bg-gray-50 p-4 pb-6 space-y-4">
+                <div>
+                    <p class="text-xs font-black text-gray-500 mb-2">운영/서비스 정보</p>
+                    <div id="bsServiceBadges" class="grid grid-cols-3 gap-1.5"></div>
+                </div>
+                <div>
+                    <p class="text-xs font-black text-gray-500 mb-2">취급 품목</p>
+                    <div id="bsItemChips" class="flex flex-wrap gap-1.5"></div>
+                    <p class="text-[10px] text-gray-400 mt-2 leading-relaxed">※ 실시간 재고가 아닌 취급 품목 안내입니다. 방문 전 전화로 확인해주세요.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 첫 실행 온보딩 -->
+        <div id="onboardingModal" class="absolute inset-0 bg-black/70 hidden flex-col items-center justify-center p-5 z-[7000]">
+            <div class="bg-white rounded-[2rem] w-full max-w-sm overflow-hidden shadow-2xl">
+                <div class="bg-gradient-to-br from-emerald-600 to-teal-600 p-6 text-center">
+                    <div class="text-4xl mb-2">💊</div>
+                    <h3 class="text-white text-lg font-black">시작하기 전에 확인해주세요</h3>
+                </div>
+                <div class="p-6 space-y-4">
+                    <div class="flex items-start gap-3">
+                        <span class="text-xl shrink-0">📋</span>
+                        <p class="text-sm text-gray-700 leading-relaxed"><b>영업시간·취급 품목·서비스 정보</b>는 등록된 정보 기준이며, 실제 운영과 다를 수 있습니다. 방문 전 전화로 확인해주세요.</p>
+                    </div>
+                    <div class="flex items-start gap-3">
+                        <span class="text-xl shrink-0">🚨</span>
+                        <p class="text-sm text-gray-700 leading-relaxed">응급 상황이거나 급하게 야간·공휴일 진료가 필요하면 <b>119</b> 또는 <b>보건복지콜센터 129</b>로도 문의하실 수 있습니다.</p>
+                    </div>
+                </div>
+                <div class="p-5 pt-0">
+                    <button onclick="closeOnboarding()" class="w-full py-3.5 bg-gray-900 text-white font-bold rounded-xl shadow-md hover:bg-gray-800 active:scale-95 transition">확인했습니다</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 설정 -->
+        <div id="settingsModal" class="absolute inset-0 bg-black/70 hidden flex-col items-center justify-center p-5 z-[7000]">
+            <div class="bg-white rounded-[2rem] w-full max-w-sm overflow-hidden shadow-2xl">
+                <div class="p-5 border-b border-gray-100 flex items-center justify-between">
+                    <h3 class="font-black text-lg text-gray-900"><i class="fa-solid fa-gear text-gray-400 mr-1"></i> 설정</h3>
+                    <button onclick="closeSettings()" class="text-gray-400 hover:text-gray-700 p-1"><i class="fa-solid fa-xmark text-xl"></i></button>
+                </div>
+                <div class="p-5 space-y-5">
+                    <div>
+                        <p class="text-sm font-bold text-gray-800 mb-2">앱 정보</p>
+                        <div class="bg-gray-50 rounded-xl p-3.5 space-y-1.5">
+                            <div class="flex items-center justify-between text-xs"><span class="text-gray-500">버전</span><span class="font-bold text-gray-800">1.0.0</span></div>
+                            <div class="flex items-center justify-between text-xs"><span class="text-gray-500">약국 위치·정보</span><span class="font-bold text-gray-800">공개 데이터 기준, 주기적 갱신</span></div>
+                        </div>
+                    </div>
+                    <div>
+                        <p class="text-sm font-bold text-gray-800 mb-2">내 데이터</p>
+                        <button onclick="resetFavorites()" class="w-full text-xs font-bold py-2.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 active:scale-95 transition">즐겨찾기 초기화</button>
+                    </div>
+                    <div>
+                        <button onclick="replayOnboarding()" class="w-full text-xs font-bold py-2.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 active:scale-95 transition">시작 안내 다시 보기</button>
+                    </div>
+                </div>
+                <div class="p-5 pt-0">
+                    <button onclick="closeSettings()" class="w-full py-3.5 bg-gray-900 text-white font-bold rounded-xl shadow-md hover:bg-gray-800 active:scale-95 transition">확인</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 서비스 필터 (지도) -->
+        <div id="serviceFilterModal" class="absolute inset-0 bg-black/70 hidden flex-col items-end justify-end p-0 z-[7000]">
+            <div class="bg-white w-full rounded-t-[24px] overflow-hidden shadow-2xl flex flex-col max-h-[80%]">
+                <div class="p-5 border-b border-gray-100 flex items-center justify-between shrink-0">
+                    <h3 class="font-black text-lg text-gray-900"><i class="fa-solid fa-sliders text-emerald-500 mr-1"></i> 서비스 필터</h3>
+                    <button onclick="closeServiceFilterModal()" class="text-gray-400 hover:text-gray-700 p-1"><i class="fa-solid fa-xmark text-xl"></i></button>
+                </div>
+                <div class="flex-1 overflow-y-auto p-5">
+                    <div id="serviceFilterChips" class="grid grid-cols-2 gap-2"></div>
+                </div>
+                <div class="p-5 pt-2 border-t border-gray-100 flex gap-2 shrink-0">
+                    <button onclick="clearServiceFilters()" class="flex-1 py-3 bg-gray-100 text-gray-600 font-bold rounded-xl active:scale-95 transition">초기화</button>
+                    <button onclick="applyServiceFiltersAndClose()" class="flex-[2] py-3 bg-gray-900 text-white font-bold rounded-xl active:scale-95 transition">적용하기</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 지역/주소 검색 -->
+        <div id="locationSearchModal" class="absolute inset-0 bg-black/70 hidden flex-col items-start justify-start p-0 z-[7000]">
+            <div class="bg-white w-full overflow-hidden shadow-2xl flex flex-col" style="height: 100%;">
+                <div class="p-4 border-b border-gray-100 flex items-center gap-2 shrink-0">
+                    <button onclick="closeLocationSearch()" class="text-gray-500 hover:text-gray-800 p-1 shrink-0"><i class="fa-solid fa-arrow-left text-lg"></i></button>
+                    <div class="relative flex-1">
+                        <input id="locationSearchInput" type="text" placeholder="지역명, 건물명, 주소 검색 (예: 강남역, 해운대구)"
+                            class="w-full bg-gray-100 rounded-full pl-4 pr-9 py-2.5 text-sm outline-none focus:ring-2 focus:ring-emerald-200"
+                            oninput="handleLocationSearchInput()" onkeydown="if(event.key==='Enter') runLocationSearch();">
+                        <button onclick="runLocationSearch()" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-emerald-600"><i class="fa-solid fa-magnifying-glass"></i></button>
+                    </div>
+                </div>
+                <div id="locationSearchResults" class="flex-1 overflow-y-auto"></div>
+            </div>
+        </div>
+
+        <!-- 내비 선택 액션시트 -->
+        <div id="naviChooserModal" class="absolute inset-0 bg-black/70 hidden flex-col items-center justify-center p-5 z-[7500]">
+            <div class="bg-white rounded-[2rem] w-full max-w-sm overflow-hidden shadow-2xl">
+                <div class="p-5 border-b border-gray-100">
+                    <h3 class="font-black text-base text-gray-900">길찾기 앱 선택</h3>
+                    <p class="text-[11px] text-gray-500 mt-0.5">설치된 앱이 없으면 실행되지 않을 수 있어요.</p>
+                </div>
+                <div class="p-3 grid grid-cols-2 gap-2">
+                    <button onclick="openExternalNavi('kakaomap')" class="py-4 rounded-xl bg-yellow-50 border border-yellow-100 font-bold text-sm text-yellow-800 active:scale-95 transition">카카오맵</button>
+                    <button onclick="openExternalNavi('kakaonavi')" class="py-4 rounded-xl bg-yellow-50 border border-yellow-100 font-bold text-sm text-yellow-800 active:scale-95 transition">카카오내비</button>
+                    <button onclick="openExternalNavi('tmap')" class="py-4 rounded-xl bg-purple-50 border border-purple-100 font-bold text-sm text-purple-800 active:scale-95 transition">티맵</button>
+                    <button onclick="openExternalNavi('navermap')" class="py-4 rounded-xl bg-green-50 border border-green-100 font-bold text-sm text-green-800 active:scale-95 transition">네이버지도</button>
+                </div>
+                <div class="p-4 pt-1">
+                    <button onclick="closeNaviChooser()" class="w-full py-3 bg-gray-100 text-gray-600 font-bold rounded-xl active:scale-95 transition">취소</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 리스트 뷰 오버레이 -->
+        <div id="listViewOverlay" class="absolute inset-0 bg-white z-[350] hidden flex-col" style="top:0;bottom:60px;">
+            <div class="px-4 pt-4 pb-2 border-b border-gray-100 shrink-0">
+                <div class="flex items-center justify-between mb-2">
+                    <div>
+                        <h3 class="font-black text-base text-gray-900"><i class="fa-solid fa-map-location-dot text-emerald-500 mr-1"></i> 주변 약국 목록</h3>
+                        <p id="listViewSubtitle" class="text-[10px] text-gray-500 font-bold leading-tight">반경 내 약국</p>
+                    </div>
+                    <button onclick="toggleListView()" class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 active:scale-95 transition"><i class="fa-solid fa-map text-sm"></i></button>
+                </div>
+            </div>
+            <div id="listViewBody" class="flex-1 overflow-y-auto px-3 py-2 space-y-2"></div>
+        </div>
+
+    </div> <!-- app-container -->
+
+    <script>
+        // ── 상수 정의 ─────────────────────────────────────────────────────
+        // 취급 품목 카테고리(재고 조회가 아닌 "취급 여부 안내" 목적)
+        const ITEM_CATS = [
+            { key: 'vitamin',     label: '비타민',   emoji: '💊' },
+            { key: 'patch',       label: '파스',     emoji: '🩹' },
+            { key: 'digestive',   label: '소화제',   emoji: '🧃' },
+            { key: 'cold',        label: '감기약',   emoji: '🤧' },
+            { key: 'probiotics',  label: '유산균',   emoji: '🦠' },
+            { key: 'omega3',      label: '오메가3',  emoji: '🐟' },
+            { key: 'bp_monitor',  label: '혈압계',   emoji: '🩺' },
+            { key: 'thermometer', label: '체온계',   emoji: '🌡️' },
+        ];
+        const ITEM_MAP = Object.fromEntries(ITEM_CATS.map(c => [c.key, c]));
+
+        // 서비스/운영 필터 정의 (지도 필터 + 전체목록 필터 + 상세 배지에 공통 사용)
+        const SERVICE_DEFS = [
+            { key: 'large',               label: '대형약국',     emoji: '🏥' },
+            { key: 'open365',             label: '365일 운영',   emoji: '📅' },
+            { key: 'nightService',        label: '심야 운영',    emoji: '🌙' },
+            { key: 'holidayOpen',         label: '공휴일 운영',  emoji: '🎌' },
+            { key: 'parking',             label: '주차 가능',    emoji: '🅿️' },
+            { key: 'driveThrough',        label: '드라이브 스루', emoji: '🚗' },
+            { key: 'prescription',        label: '조제 가능',    emoji: '📋' },
+            { key: 'healthFunctionalFood',label: '건강기능식품', emoji: '🌿' },
+            { key: 'medicalDevice',       label: '의료기기',     emoji: '🩼' },
+            { key: 'bloodPressure',       label: '혈압측정',     emoji: '❤️' },
+            { key: 'bloodSugar',          label: '혈당측정',     emoji: '🩸' },
+        ];
+        const SERVICE_MAP = Object.fromEntries(SERVICE_DEFS.map(s => [s.key, s]));
+        // 지도 우측 패널의 "서비스 필터" 팝업에서 우선 노출할 핵심 필터
+        const QUICK_FILTER_KEYS = ['open365', 'nightService', 'holidayOpen', 'parking', 'driveThrough', 'healthFunctionalFood', 'medicalDevice', 'large'];
+
+        // 브이월드(국토지리정보원) API 키 - 지역/주소 검색, 위성뷰에 사용.
+        // 저장소에는 커밋하지 않음(공개 git 히스토리에 실키 노출 방지). 로컬에서 직접 채워 넣거나
+        // 배포 시 빌드 단계에서 주입해서 쓸 것. 무료 발급: https://www.vworld.kr
+        const VWORLD_KEY = '';
+
+        let map, activeStore = null;
+        let favoriteStores = new Set();
+        let storeMarkersData = [], mapMarkers = [];
+        let isUserPanning = false, currentRadius = 500, searchCircle = null;
+        let mapServiceFilters = new Set(); // 지도/전체목록에 공통 적용되는 서비스 필터(AND)
+        let allStoresDB = [], REAL_STORES = [];
+        let STORE_INDEX = [], loadedProvinceFile = null;
+        let searchItemFilter = null;
+
+        // 실제 데이터가 준비되면 stores/index.json + stores/<시도>.json으로 자동 전환됩니다.
+        // (scripts/pharmacyLocations.js 로 동기화. 아직 없으면 데모용 가상 약국 데이터를 사용합니다.)
+        const DATA_BASE_URL = './';
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadSavedData();
+
+            fetch(DATA_BASE_URL + 'stores/index.json').then(res => res.ok ? res.json() : null).catch(() => null)
+                .then(async (index) => {
+                    if (index && index.length > 0) {
+                        STORE_INDEX = index;
+                        await loadStoresForLocation(37.498095, 127.027610); // 기본 위치(서울) 기준 1차 로딩
+                    } else {
+                        console.log('stores/index.json 없음 - 데모용 가상 약국 데이터 사용');
+                    }
+                    startApp();
+                });
+        });
+
+        function startApp() {
+            if (REAL_STORES.length === 0) generateVirtualPharmacies();
+            initMap();
+            applyStartupSettings();
+            renderItemQuickChips();
+            renderServiceFilterChips();
+            renderAllListFilterChips();
+            document.getElementById('map').addEventListener('mousedown', closeSheet);
+            document.getElementById('map').addEventListener('touchstart', closeSheet);
+            window.addEventListener('resize', () => { if(map) map.invalidateSize(); });
+            maybeShowOnboarding();
+        }
+
+        function maybeShowOnboarding() {
+            if (localStorage.getItem('ph_onboarded')) return;
+            const modal = document.getElementById('onboardingModal');
+            modal.classList.remove('hidden'); modal.classList.add('flex');
+        }
+        function closeOnboarding() {
+            localStorage.setItem('ph_onboarded', '1');
+            const modal = document.getElementById('onboardingModal');
+            modal.classList.add('hidden'); modal.classList.remove('flex');
+        }
+
+        // ── 위치 기반 시/도 데이터 로딩 (편의점 앱과 동일한 패턴) ────────────
+        function vworldJsonp(url) {
+            if (!VWORLD_KEY) return Promise.resolve(null);
+            return new Promise(resolve => {
+                const cbName = `vworldCb${Date.now()}${Math.floor(Math.random() * 1e6)}`;
+                const cleanup = () => { delete window[cbName]; script.remove(); };
+                const timer = setTimeout(() => { cleanup(); resolve(null); }, 5000);
+                window[cbName] = (json) => { clearTimeout(timer); cleanup(); resolve(json); };
+                const script = document.createElement('script');
+                script.src = `${url}&callback=${cbName}`;
+                script.onerror = () => { clearTimeout(timer); cleanup(); resolve(null); };
+                document.body.appendChild(script);
+            });
+        }
+
+        async function getProvinceNameByCoords(lat, lng) {
+            const json = await vworldJsonp(`https://api.vworld.kr/req/address?service=address&request=getAddress&version=2.0&crs=epsg:4326&point=${lng},${lat}&type=parcel&key=${VWORLD_KEY}&format=json`);
+            return json?.response?.result?.[0]?.structure?.level1 || null;
+        }
+
+        function nearestProvinceByDistance(lat, lng) {
+            let nearest = null, bestDist = Infinity;
+            STORE_INDEX.forEach(p => {
+                const d = (p.centerLat - lat) ** 2 + (p.centerLng - lng) ** 2;
+                if (d < bestDist) { bestDist = d; nearest = p; }
+            });
+            return nearest;
+        }
+
+        async function loadStoresForLocation(lat, lng) {
+            if (STORE_INDEX.length === 0) return false;
+            const provinceName = await getProvinceNameByCoords(lat, lng);
+            let nearest = provinceName ? STORE_INDEX.find(p => p.province === provinceName) : null;
+            if (!nearest) nearest = nearestProvinceByDistance(lat, lng);
+            if (!nearest || nearest.file === loadedProvinceFile) return false;
+
+            try {
+                const res = await fetch(DATA_BASE_URL + 'stores/' + nearest.file);
+                if (!res.ok) throw new Error('store shard fetch failed');
+                REAL_STORES = await res.json();
+                loadedProvinceFile = nearest.file;
+                allStoresDB = REAL_STORES;
+                return true;
+            } catch (e) {
+                console.log(`${nearest.file} 로드 실패 - 약국 데이터 갱신 안 됨`);
+                return false;
+            }
+        }
+
+        function loadSavedData() {
+            try {
+                const savedFavs = localStorage.getItem('ph_favorites');
+                if (savedFavs) favoriteStores = new Set(JSON.parse(savedFavs));
+                updateFavBadge();
+            } catch(e) {}
+        }
+        function saveFavorites() {
+            try { localStorage.setItem('ph_favorites', JSON.stringify([...favoriteStores])); } catch(e) {}
+        }
+
+        // ── 데모용 가상 약국 생성 (실데이터 연동 전 폴백) ────────────────────
+        const NAME_PREFIX = ['건강', '행복', '365', '하나', '우리', '메가', '참', '으뜸', '굿', '베스트', '365데이'];
+        function randPhone() {
+            const mid = String(Math.floor(1000 + Math.random() * 9000));
+            const last = String(Math.floor(1000 + Math.random() * 9000));
+            return `02-${mid}-${last}`;
+        }
+        function pad2(n) { return String(n).padStart(2, '0'); }
+
+        function generateVirtualPharmacies(baseLat = 37.498095, baseLng = 127.027610) {
+            allStoresDB = [];
+            for (let i = 0; i < 220; i++) {
+                const isLarge = Math.random() < 0.4;
+                const lat = baseLat + (Math.random() - 0.5) * 0.09;
+                const lng = baseLng + (Math.random() - 0.5) * 0.09;
+                const name = `${NAME_PREFIX[Math.floor(Math.random() * NAME_PREFIX.length)]}${isLarge ? '대형약국' : '약국'} ${i + 1}호점`;
+
+                const open365 = isLarge ? Math.random() < 0.6 : Math.random() < 0.08;
+                const nightService = isLarge ? Math.random() < 0.5 : Math.random() < 0.1;
+                const holidayOpen = open365 || Math.random() < (isLarge ? 0.5 : 0.15);
+                const is24h = open365 && nightService && Math.random() < 0.35;
+
+                let openHour, closeHour;
+                if (is24h) { openHour = 0; closeHour = 24; }
+                else {
+                    openHour = 8 + Math.floor(Math.random() * 2);
+                    closeHour = nightService ? (22 + Math.floor(Math.random() * 3)) : (19 + Math.floor(Math.random() * 3));
+                }
+
+                const itemPool = ITEM_CATS.map(c => c.key);
+                const itemCount = isLarge ? (5 + Math.floor(Math.random() * 4)) : (2 + Math.floor(Math.random() * 3));
+                const items = itemPool.sort(() => Math.random() - 0.5).slice(0, itemCount);
+
+                allStoresDB.push({
+                    id: `demo_${i}`,
+                    name, lat, lng,
+                    address: null,
+                    phone: randPhone(),
+                    large: isLarge,
+                    hours: {
+                        is24h,
+                        open: is24h ? '00:00' : `${pad2(openHour)}:00`,
+                        close: is24h ? '24:00' : `${pad2(closeHour % 24)}:00`,
+                        open365, nightService, holidayOpen,
+                    },
+                    services: {
+                        parking: isLarge ? Math.random() < 0.7 : Math.random() < 0.2,
+                        driveThrough: isLarge ? Math.random() < 0.1 : false,
+                        prescription: Math.random() < 0.9,
+                        healthFunctionalFood: isLarge ? Math.random() < 0.85 : Math.random() < 0.35,
+                        medicalDevice: isLarge ? Math.random() < 0.75 : Math.random() < 0.25,
+                        bloodPressure: isLarge ? Math.random() < 0.6 : Math.random() < 0.2,
+                        bloodSugar: isLarge ? Math.random() < 0.4 : Math.random() < 0.1,
+                    },
+                    items,
+                });
+            }
+        }
+
+        // ── 지도 ─────────────────────────────────────────────────────────
+        let streetLayer, satelliteLayer, satelliteLabelLayer, isSatelliteView = false;
+
+        function initMap() {
+            const defaultCenter = [37.498095, 127.027610];
+            map = L.map('map', { zoomControl: false }).setView(defaultCenter, 16);
+
+            streetLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png');
+            if (VWORLD_KEY) {
+                satelliteLayer = L.tileLayer(`https://api.vworld.kr/req/wmts/1.0.0/${VWORLD_KEY}/Satellite/{z}/{y}/{x}.jpeg`, { attribution: '&copy; VWorld', maxZoom: 19 });
+                satelliteLabelLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}{r}.png');
+            }
+            streetLayer.addTo(map);
+
+            searchCircle = L.circle(defaultCenter, {
+                radius: currentRadius, color: '#059669', fillColor: '#059669',
+                fillOpacity: 0.05, weight: 2, dashArray: '5, 5'
+            }).addTo(map);
+
+            map.on('move', () => { searchCircle.setLatLng(map.getCenter()); });
+            map.on('dragstart', () => { isUserPanning = true; });
+            map.on('zoomstart', () => { isUserPanning = true; });
+            map.on('moveend', () => {
+                if (isUserPanning) {
+                    const btn = document.getElementById('reSearchBtn');
+                    btn.classList.remove('opacity-0', 'pointer-events-none', 'translate-y-[10px]');
+                    btn.classList.add('opacity-100', 'pointer-events-auto', 'translate-y-0');
+                    isUserPanning = false;
+                }
+            });
+
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    async position => {
+                        const lat = position.coords.latitude, lng = position.coords.longitude;
+                        map.setView([lat, lng], 16);
+                        searchCircle.setLatLng([lat, lng]);
+                        const switched = await loadStoresForLocation(lat, lng);
+                        if (!switched && REAL_STORES.length === 0) generateVirtualPharmacies(lat, lng);
+                        loadStoresInRadius();
+                    },
+                    error => { loadStoresInRadius(); },
+                    { timeout: 5000 }
+                );
+            } else {
+                loadStoresInRadius();
+            }
+            setTimeout(() => { map.invalidateSize(); }, 300);
+        }
+
+        async function goToLocation(lat, lng) {
+            map.setView([lat, lng], 16);
+            await loadStoresForLocation(lat, lng);
+            searchInCurrentArea();
+        }
+
+        function findMyLocation() {
+            showToast('위치 탐색 중...', 1000);
+            if (document.body.classList.contains('in-toss-app') && typeof tossGetCurrentLocation === 'function') {
+                tossGetCurrentLocation()
+                    .then(loc => goToLocation(loc.coords.latitude, loc.coords.longitude))
+                    .catch(() => showToast('위치 권한이 필요합니다. 설정에서 위치 권한을 허용해주세요.'));
+                return;
+            }
+            if (!navigator.geolocation) { showToast('이 브라우저에서는 위치 찾기를 지원하지 않습니다.'); return; }
+            navigator.geolocation.getCurrentPosition(
+                position => goToLocation(position.coords.latitude, position.coords.longitude),
+                () => showToast('위치 권한이 필요합니다. 브라우저 설정에서 위치 권한을 허용해주세요.')
+            );
+        }
+
+        function applySatelliteView(on) {
+            if (!VWORLD_KEY) { showToast('위성 보기는 브이월드 API 키 설정 후 사용할 수 있습니다.'); return; }
+            isSatelliteView = on;
+            const btn = document.getElementById('satelliteToggleBtn');
+            if (on) {
+                map.removeLayer(streetLayer);
+                satelliteLayer.addTo(map); satelliteLabelLayer.addTo(map);
+                btn.classList.add('text-emerald-600', 'bg-emerald-50'); btn.classList.remove('text-gray-600');
+            } else {
+                map.removeLayer(satelliteLayer); map.removeLayer(satelliteLabelLayer);
+                streetLayer.addTo(map);
+                btn.classList.remove('text-emerald-600', 'bg-emerald-50'); btn.classList.add('text-gray-600');
+            }
+        }
+        function toggleSatelliteView() { applySatelliteView(!isSatelliteView); }
+
+        // isOpenNow: 공휴일 판정은 일요일로 근사(정확한 공휴일 캘린더 연동은 추후 과제)
+        function isOpenNow(store) {
+            const h = store.hours;
+            if (h.is24h) return true;
+            const now = new Date();
+            const day = now.getDay();
+            const approxHoliday = (day === 0);
+            if (approxHoliday && !h.holidayOpen) return false;
+            const [oh, om] = h.open.split(':').map(Number);
+            const [ch, cm] = h.close.split(':').map(Number);
+            const openMin = oh * 60 + om;
+            const closeMin = ch * 60 + cm;
+            const nowMin = now.getHours() * 60 + now.getMinutes();
+            if (closeMin <= openMin) return nowMin >= openMin || nowMin < closeMin; // 자정 넘어가는 영업시간
+            return nowMin >= openMin && nowMin < closeMin;
+        }
+
+        function passesServiceFilters(store) {
+            for (const key of mapServiceFilters) {
+                if (key === 'large') { if (!store.large) return false; continue; }
+                if (store.hours[key] !== undefined) { if (!store.hours[key]) return false; continue; }
+                if (store.services[key] !== undefined) { if (!store.services[key]) return false; continue; }
+            }
+            return true;
+        }
+
+        function loadStoresInRadius() {
+            mapMarkers.forEach(m => map.removeLayer(m));
+            mapMarkers = [];
+            storeMarkersData = [];
+            const center = map.getCenter();
+
+            allStoresDB.forEach(store => {
+                if (!passesServiceFilters(store)) return;
+                const dist = map.distance(center, [store.lat, store.lng]);
+                if (dist <= currentRadius) {
+                    storeMarkersData.push(store);
+                    const open = isOpenNow(store);
+                    const size = store.large ? 44 : 38;
+                    const iconHtml = `<div class="custom-marker ${open ? 'marker-open' : 'marker-closed'}" style="width:${size}px;height:${size}px;font-size:${store.large ? 18 : 15}px;z-index:20;">${store.large ? '🏥' : '➕'}</div>`;
+                    const icon = L.divIcon({ className: 'bg-transparent', html: iconHtml, iconSize: [size, size], iconAnchor: [size/2, size/2] });
+                    const marker = L.marker([store.lat, store.lng], { icon }).addTo(map);
+                    marker.on('click', () => openStore(store));
+                    mapMarkers.push(marker);
+                }
+            });
+            updateDashboardChips();
+        }
+
+        function updateDashboardChips() {
+            const openCount = storeMarkersData.filter(isOpenNow).length;
+            document.getElementById('chipOpenNow').innerText = `${openCount}곳`;
+            document.getElementById('chip365').innerText = `${storeMarkersData.filter(s => s.hours.open365).length}곳`;
+            document.getElementById('chipNight').innerText = `${storeMarkersData.filter(s => s.hours.nightService).length}곳`;
+            document.getElementById('chipHoliday').innerText = `${storeMarkersData.filter(s => s.hours.holidayOpen).length}곳`;
+        }
+
+        function quickFilterChip(key) {
+            mapServiceFilters.clear();
+            mapServiceFilters.add(key);
+            renderServiceFilterChips();
+            loadStoresInRadius();
+            showToast(`'${SERVICE_MAP[key].label}' 약국만 지도에 표시합니다.`);
+        }
+
+        async function searchInCurrentArea() {
+            const btn = document.getElementById('reSearchBtn');
+            btn.classList.add('opacity-0', 'pointer-events-none', 'translate-y-[10px]');
+            btn.classList.remove('opacity-100', 'pointer-events-auto', 'translate-y-0');
+
+            const center = map.getCenter();
+            await loadStoresForLocation(center.lat, center.lng);
+
+            setTimeout(() => {
+                loadStoresInRadius();
+                showToast(`반경 ${currentRadius}m 내에서 ${storeMarkersData.length}개의 약국을 찾았습니다.`);
+            }, 300);
+        }
+
+        function highlightRadiusButton(r) {
+            [300, 500, 1000, 2000].forEach(val => {
+                const btn = document.getElementById(`rad${val}`);
+                if (val === r) { btn.classList.add('text-emerald-600', 'bg-emerald-50'); btn.classList.remove('text-gray-500'); }
+                else { btn.classList.remove('text-emerald-600', 'bg-emerald-50'); btn.classList.add('text-gray-500'); }
+            });
+        }
+        function setRadius(r) {
+            currentRadius = r;
+            highlightRadiusButton(r);
+            searchCircle.setRadius(r);
+            map.flyToBounds(searchCircle.getBounds(), { padding: [20, 20], duration: 0.5 });
+            setTimeout(() => { loadStoresInRadius(); showToast(`검색 반경이 ${r}m로 변경되었습니다.`); }, 600);
+        }
+        function applyStartupSettings() { highlightRadiusButton(currentRadius); }
+
+        // ── 설정/온보딩 ──────────────────────────────────────────────────
+        function openSettings() { document.getElementById('settingsModal').classList.remove('hidden'); document.getElementById('settingsModal').classList.add('flex'); }
+        function closeSettings() { document.getElementById('settingsModal').classList.add('hidden'); document.getElementById('settingsModal').classList.remove('flex'); }
+        function resetFavorites() { favoriteStores.clear(); saveFavorites(); updateFavBadge(); showToast('즐겨찾기를 초기화했습니다.'); }
+        function replayOnboarding() { localStorage.removeItem('ph_onboarded'); closeSettings(); maybeShowOnboarding(); }
+
+        // ── 지역/주소 검색 (브이월드) ─────────────────────────────────────
+        let locationSearchTimer = null;
+        function openLocationSearch() {
+            const modal = document.getElementById('locationSearchModal');
+            modal.classList.remove('hidden'); modal.classList.add('flex');
+            document.getElementById('locationSearchResults').innerHTML = '';
+            setTimeout(() => document.getElementById('locationSearchInput').focus(), 100);
+        }
+        function closeLocationSearch() {
+            const modal = document.getElementById('locationSearchModal');
+            modal.classList.add('hidden'); modal.classList.remove('flex');
+            document.getElementById('locationSearchInput').value = '';
+        }
+        function handleLocationSearchInput() { clearTimeout(locationSearchTimer); locationSearchTimer = setTimeout(runLocationSearch, 400); }
+
+        function renderLocationSearchResults(items) {
+            const container = document.getElementById('locationSearchResults');
+            if (items.length === 0) { container.innerHTML = `<p class="text-center text-sm text-gray-400 py-10">검색 결과가 없습니다.</p>`; return; }
+            container.innerHTML = items.map((item, i) => `
+                <button onclick="selectSearchResult(${i})" class="w-full text-left px-5 py-3.5 border-b border-gray-50 hover:bg-gray-50 active:bg-gray-100 transition flex items-start gap-3">
+                    <i class="fa-solid ${item.icon} text-gray-400 mt-0.5"></i>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm font-bold text-gray-900 truncate">${item.title}</p>
+                        <p class="text-xs text-gray-500 truncate mt-0.5">${item.subtitle}</p>
+                    </div>
+                </button>
+            `).join('');
+            window._locationSearchResultsData = items;
+        }
+
+        async function runLocationSearch() {
+            const query = document.getElementById('locationSearchInput').value.trim();
+            const container = document.getElementById('locationSearchResults');
+            if (!query) { container.innerHTML = ''; return; }
+            if (!VWORLD_KEY) { container.innerHTML = `<p class="text-center text-sm text-gray-400 py-10 px-6">지역 검색은 브이월드 API 키 설정 후 사용할 수 있습니다.</p>`; return; }
+            container.innerHTML = `<p class="text-center text-sm text-gray-400 py-10">검색 중...</p>`;
+
+            const placeJson = await vworldJsonp(`https://api.vworld.kr/req/search?service=search&request=search&version=2.0&query=${encodeURIComponent(query)}&type=place&format=json&key=${VWORLD_KEY}`);
+            const placeItems = (placeJson?.response?.status === 'OK' ? placeJson.response.result.items : []).map(p => ({
+                title: p.title.replace(/<[^>]+>/g, ''), subtitle: p.address.road || p.address.parcel || p.category,
+                lat: parseFloat(p.point.y), lng: parseFloat(p.point.x), icon: 'fa-location-dot',
+            }));
+            const addrJson = await vworldJsonp(`https://api.vworld.kr/req/search?service=search&request=search&version=2.0&query=${encodeURIComponent(query)}&type=address&category=road&format=json&key=${VWORLD_KEY}`);
+            const addrItems = (addrJson?.response?.status === 'OK' ? addrJson.response.result.items : []).slice(0, 5).map(a => ({
+                title: a.address.road || a.address.parcel, subtitle: a.address.bldnm || '주소',
+                lat: parseFloat(a.point.y), lng: parseFloat(a.point.x), icon: 'fa-map',
+            }));
+            renderLocationSearchResults([...placeItems, ...addrItems]);
+        }
+
+        async function selectSearchResult(index) {
+            const item = window._locationSearchResultsData[index];
+            if (!item) return;
+            closeLocationSearch();
+            showToast(`'${item.title}' 위치로 이동합니다.`);
+            map.setView([item.lat, item.lng], 16);
+            await loadStoresForLocation(item.lat, item.lng);
+            searchCircle.setLatLng([item.lat, item.lng]);
+            loadStoresInRadius();
+        }
+
+        // ── 탭/모달 공통 ─────────────────────────────────────────────────
+        function setActiveNav(tabId) {
+            const btns = document.querySelectorAll('.nav-btn');
+            btns.forEach(btn => {
+                btn.classList.remove('text-emerald-600');
+                btn.classList.add('text-gray-400');
+                btn.querySelector('span').classList.remove('font-black');
+                btn.querySelector('span').classList.add('font-bold');
+            });
+            const activeBtn = document.getElementById(`nav-${tabId}`);
+            if (activeBtn) {
+                activeBtn.classList.remove('text-gray-400');
+                activeBtn.classList.add('text-emerald-600');
+                activeBtn.querySelector('span').classList.remove('font-bold');
+                activeBtn.querySelector('span').classList.add('font-black');
+            }
+        }
+        function hideAllTabModals() {
+            ['searchModal', 'favoritesModal', 'openNowModal', 'allListModal'].forEach(id => document.getElementById(id).classList.remove('active'));
+        }
+        function openTabModal(id, navId) {
+            closeSheet();
+            hideAllTabModals();
+            document.getElementById(id).classList.add('active');
+            setActiveNav(navId);
+            if (id === 'searchModal') setTimeout(() => document.getElementById('searchInput').focus(), 100);
+            else if (id === 'favoritesModal') renderFavorites();
+            else if (id === 'openNowModal') renderOpenNowList();
+            else if (id === 'allListModal') renderAllList();
+        }
+        function goHome() { hideAllTabModals(); closeSheet(); setActiveNav('home'); }
+
+        // ── 매장 상세 ────────────────────────────────────────────────────
+        function formatHoursText(store) {
+            if (store.hours.is24h) return '24시간 운영';
+            const [oh, om] = store.hours.open.split(':').map(Number);
+            const [ch, cm] = store.hours.close.split(':').map(Number);
+            const wraps = (ch * 60 + cm) <= (oh * 60 + om); // 자정을 넘겨 다음날 새벽에 마감
+            return `${store.hours.open} ~ ${wraps ? '익일 ' : ''}${store.hours.close}`;
+        }
+
+        function openStore(store) {
+            activeStore = store;
+            if (typeof onStoreOpened === 'function') onStoreOpened();
+            map.invalidateSize(); // 초기 로딩 타이밍에 따라 지도 크기가 아직 0일 수 있어 방어적으로 갱신
+            map.flyTo([store.lat - 0.0015, store.lng], 17, { duration: 0.5 });
+
+            document.getElementById('bsStoreLogo').innerText = store.large ? '🏥' : '➕';
+            document.getElementById('bsStoreName').innerText = store.name;
+            document.getElementById('bsStoreAddr').innerText = store.address || '주소 정보 준비 중';
+            document.getElementById('bsStoreHours').innerText = formatHoursText(store);
+
+            const open = isOpenNow(store);
+            const badge = document.getElementById('bsOpenBadge');
+            badge.innerText = open ? '영업중' : '영업종료';
+            badge.className = `text-[10px] font-black px-1.5 py-0.5 rounded shrink-0 ${open ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-200 text-gray-500'}`;
+
+            renderFavButton();
+
+            const badgesEl = document.getElementById('bsServiceBadges');
+            const flags = { open365: store.hours.open365, nightService: store.hours.nightService, holidayOpen: store.hours.holidayOpen, ...store.services };
+            badgesEl.innerHTML = SERVICE_DEFS.filter(s => s.key !== 'large').map(s => {
+                const on = !!flags[s.key];
+                return `<div class="flex flex-col items-center py-2 rounded-xl border ${on ? 'bg-emerald-50 border-emerald-100 text-emerald-700' : 'bg-gray-50 border-gray-100 text-gray-300'}">
+                    <span class="text-base">${s.emoji}</span>
+                    <span class="text-[9px] font-bold mt-0.5 text-center leading-tight">${s.label}</span>
+                </div>`;
+            }).join('');
+
+            const itemsEl = document.getElementById('bsItemChips');
+            if (!store.items || store.items.length === 0) {
+                itemsEl.innerHTML = `<span class="text-xs text-gray-400">등록된 취급 품목 정보가 없습니다.</span>`;
+            } else {
+                itemsEl.innerHTML = store.items.map(k => ITEM_MAP[k] ? `<span class="text-xs font-bold bg-white border border-gray-200 px-2.5 py-1.5 rounded-full">${ITEM_MAP[k].emoji} ${ITEM_MAP[k].label}</span>` : '').join('');
+            }
+
+            document.getElementById('bottomSheet').classList.add('active');
+        }
+        function closeSheet() { document.getElementById('bottomSheet').classList.remove('active'); }
+
+        function callStore() {
+            if (!activeStore) return;
+            if (!activeStore.phone) { showToast('등록된 전화번호가 없습니다.'); return; }
+            window.location.href = 'tel:' + activeStore.phone;
+        }
+        function openKakaoDirections() {
+            if (!activeStore) return;
+            window.open(`https://map.kakao.com/link/to/${encodeURIComponent(activeStore.name)},${activeStore.lat},${activeStore.lng}`, '_blank');
+        }
+        function openNaviChooser() {
+            if (!activeStore) return;
+            document.getElementById('naviChooserModal').classList.remove('hidden');
+            document.getElementById('naviChooserModal').classList.add('flex');
+        }
+        function closeNaviChooser() {
+            document.getElementById('naviChooserModal').classList.add('hidden');
+            document.getElementById('naviChooserModal').classList.remove('flex');
+        }
+        function openExternalNavi(app) {
+            if (!activeStore) return;
+            const { name, lat, lng } = activeStore;
+            const n = encodeURIComponent(name);
+            let url = '';
+            if (app === 'kakaomap') url = `https://map.kakao.com/link/to/${n},${lat},${lng}`;
+            else if (app === 'kakaonavi') url = `kakaonavi://navigate?name=${n}&x=${lng}&y=${lat}&coord_type=wgs84`;
+            else if (app === 'tmap') url = `tmap://route?goalname=${n}&goalx=${lng}&goaly=${lat}`;
+            else if (app === 'navermap') url = `nmap://route/car?dlat=${lat}&dlng=${lng}&dname=${n}&appname=large-pharmacy-navi`;
+            closeNaviChooser();
+            if (app === 'kakaomap') window.open(url, '_blank');
+            else { window.location.href = url; showToast('앱이 설치되어 있지 않다면 실행되지 않을 수 있어요.'); }
+        }
+
+        function renderFavButton() {
+            const btn = document.getElementById('bsFavBtn');
+            const isFav = activeStore && favoriteStores.has(activeStore.id);
+            btn.innerHTML = isFav ? `<i class="fa-solid fa-heart text-2xl text-rose-500"></i>` : `<i class="fa-regular fa-heart text-2xl text-gray-300"></i>`;
+        }
+        function toggleFavoriteActive() {
+            if (!activeStore) return;
+            if (favoriteStores.has(activeStore.id)) { favoriteStores.delete(activeStore.id); showToast('즐겨찾기에서 제거했습니다.'); }
+            else { favoriteStores.add(activeStore.id); showToast('즐겨찾기에 추가했습니다.'); }
+            saveFavorites(); updateFavBadge(); renderFavButton();
+            if (document.getElementById('favoritesModal').classList.contains('active')) renderFavorites();
+        }
+        function updateFavBadge() {
+            const badge = document.getElementById('favBadge');
+            if (favoriteStores.size > 0) { badge.innerText = favoriteStores.size; badge.classList.remove('hidden'); }
+            else badge.classList.add('hidden');
+        }
+
+        // ── 카드 렌더링 공통 ─────────────────────────────────────────────
+        function createStoreCardHTML(store, opts = {}) {
+            const open = isOpenNow(store);
+            const dist = map ? Math.round(map.distance(map.getCenter(), [store.lat, store.lng])) : null;
+            const isFav = favoriteStores.has(store.id);
+            const itemChips = (store.items || []).slice(0, 4).map(k => ITEM_MAP[k] ? `<span class="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">${ITEM_MAP[k].emoji}${ITEM_MAP[k].label}</span>` : '').join('');
+            return `
+            <div class="bg-white rounded-2xl p-3.5 shadow-sm border border-gray-100 relative cursor-pointer hover:bg-gray-50 active:scale-[0.99] transition" onclick='openStoreById("${store.id}")'>
+                <div class="flex items-start gap-3">
+                    <div class="w-11 h-11 rounded-full ${store.large ? 'bg-emerald-100' : 'bg-gray-100'} flex items-center justify-center text-xl shrink-0">${store.large ? '🏥' : '➕'}</div>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-1.5 flex-wrap">
+                            <h4 class="font-black text-sm text-gray-900 truncate">${store.name}</h4>
+                            <span class="text-[9px] font-black px-1.5 py-0.5 rounded ${open ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-200 text-gray-500'}">${open ? '영업중' : '영업종료'}</span>
+                            ${store.large ? '<span class="text-[9px] font-black px-1.5 py-0.5 rounded bg-blue-50 text-blue-600">대형</span>' : ''}
+                        </div>
+                        <p class="text-[11px] text-gray-500 mt-0.5">${formatHoursText(store)}${dist !== null ? ` · 약 ${dist}m` : ''}</p>
+                        <div class="flex flex-wrap gap-1 mt-1.5">${itemChips}</div>
+                    </div>
+                    <button onclick="event.stopPropagation(); toggleFavoriteById('${store.id}')" class="p-1 shrink-0">
+                        <i class="fa-${isFav ? 'solid text-rose-500' : 'regular text-gray-300'} fa-heart text-lg"></i>
+                    </button>
+                </div>
+            </div>`;
+        }
+        function openStoreById(id) {
+            const store = allStoresDB.find(s => s.id === id) || storeMarkersData.find(s => s.id === id);
+            if (store) { goHome(); openStore(store); }
+        }
+        function toggleFavoriteById(id) {
+            if (favoriteStores.has(id)) favoriteStores.delete(id); else favoriteStores.add(id);
+            saveFavorites(); updateFavBadge();
+            if (document.getElementById('favoritesModal').classList.contains('active')) renderFavorites();
+            if (document.getElementById('openNowModal').classList.contains('active')) renderOpenNowList();
+            if (document.getElementById('allListModal').classList.contains('active')) renderAllList();
+        }
+
+        // ── 품목/약국 검색 ───────────────────────────────────────────────
+        function renderItemQuickChips() {
+            document.getElementById('itemQuickChips').innerHTML = ITEM_CATS.map(c => `
+                <button onclick="quickSearchItem('${c.key}')" id="isf-${c.key}" class="text-[11px] font-bold px-3 py-1.5 rounded-full border border-gray-200 text-gray-600 bg-white whitespace-nowrap shrink-0 active:scale-95 transition">${c.emoji} ${c.label}</button>
+            `).join('');
+        }
+        function quickSearchItem(key) {
+            searchItemFilter = (searchItemFilter === key) ? null : key;
+            ITEM_CATS.forEach(c => {
+                const btn = document.getElementById(`isf-${c.key}`);
+                if (searchItemFilter === c.key) { btn.classList.add('bg-emerald-600', 'text-white', 'border-emerald-600'); btn.classList.remove('bg-white', 'text-gray-600', 'border-gray-200'); }
+                else { btn.classList.remove('bg-emerald-600', 'text-white', 'border-emerald-600'); btn.classList.add('bg-white', 'text-gray-600', 'border-gray-200'); }
+            });
+            performSearch();
+        }
+
+        const CHOSUNG = ['ㄱ','ㄲ','ㄴ','ㄷ','ㄸ','ㄹ','ㅁ','ㅂ','ㅃ','ㅅ','ㅆ','ㅇ','ㅈ','ㅉ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
+        function toChosung(str) {
+            return [...str].map(ch => {
+                const code = ch.charCodeAt(0) - 0xAC00;
+                if (code < 0 || code > 11171) return ch;
+                return CHOSUNG[Math.floor(code / 588)];
+            }).join('');
+        }
+        function matchSearch(name, query) {
+            const n = name.toLowerCase();
+            if (n.includes(query)) return true;
+            if (/^[ㄱ-ㅎ]+$/.test(query)) return toChosung(name).includes(query);
+            return false;
+        }
+
+        function performSearch() {
+            const query = document.getElementById('searchInput').value.trim().toLowerCase();
+            const empty = document.getElementById('searchEmptyState');
+            const list = document.getElementById('searchResultsList');
+
+            if (!query && !searchItemFilter) { empty.classList.remove('hidden'); list.classList.add('hidden'); return; }
+            empty.classList.add('hidden'); list.classList.remove('hidden');
+
+            let matches = allStoresDB.filter(s => {
+                if (searchItemFilter && !(s.items || []).includes(searchItemFilter)) return false;
+                if (query && !(matchSearch(s.name, query) || (s.address && matchSearch(s.address, query)))) return false;
+                return true;
+            });
+
+            if (matches.length === 0) {
+                list.innerHTML = `<div class="p-8 text-center text-gray-500 font-bold mt-10">결과가 없습니다.</div>`;
+            } else {
+                list.innerHTML = `<div class="px-2 py-1 flex justify-between items-center"><span class="text-xs font-bold text-gray-500">검색 결과 ${matches.length}건</span></div>` + matches.map(s => createStoreCardHTML(s)).join('');
+            }
+        }
+
+        // ── 즐겨찾기 ─────────────────────────────────────────────────────
+        function renderFavorites() {
+            const list = document.getElementById('favoritesList');
+            const favs = allStoresDB.filter(s => favoriteStores.has(s.id));
+            if (favs.length === 0) {
+                list.innerHTML = `<div class="p-10 text-center text-gray-400 font-medium flex flex-col items-center mt-10"><i class="fa-regular fa-heart text-5xl mb-3 text-gray-200"></i>즐겨찾는 약국이 없습니다.</div>`;
+            } else {
+                list.innerHTML = favs.map(s => createStoreCardHTML(s)).join('');
+            }
+        }
+
+        // ── 지금 영업중 랭킹 ─────────────────────────────────────────────
+        function renderOpenNowList() {
+            const sorted = [...storeMarkersData].sort((a, b) => {
+                const openDiff = (isOpenNow(b) ? 1 : 0) - (isOpenNow(a) ? 1 : 0);
+                if (openDiff !== 0) return openDiff;
+                return map.distance(map.getCenter(), [a.lat, a.lng]) - map.distance(map.getCenter(), [b.lat, b.lng]);
+            });
+            const el = document.getElementById('openNowList');
+            if (sorted.length === 0) {
+                el.innerHTML = `<div class="text-center text-gray-400 py-10 font-medium flex flex-col items-center"><i class="fa-solid fa-store-slash text-4xl mb-3 text-gray-300"></i>현재 반경에 약국이 없습니다.<br>지도를 이동하거나 반경을 넓혀보세요.</div>`;
+                return;
+            }
+            el.innerHTML = sorted.map(s => createStoreCardHTML(s)).join('');
+        }
+
+        // ── 전체 목록 + 서비스 필터 ──────────────────────────────────────
+        let allListFilters = new Set();
+        function renderAllListFilterChips() {
+            document.getElementById('allListFilterChips').innerHTML = QUICK_FILTER_KEYS.map(key => `
+                <button onclick="toggleAllListFilter('${key}')" id="alf-${key}" class="text-[11px] font-bold px-3 py-1.5 rounded-full border border-gray-200 text-gray-600 bg-white whitespace-nowrap shrink-0 active:scale-95 transition">${SERVICE_MAP[key].emoji} ${SERVICE_MAP[key].label}</button>
+            `).join('');
+        }
+        function toggleAllListFilter(key) {
+            if (allListFilters.has(key)) allListFilters.delete(key); else allListFilters.add(key);
+            const btn = document.getElementById(`alf-${key}`);
+            const active = allListFilters.has(key);
+            btn.classList.toggle('bg-gray-900', active); btn.classList.toggle('text-white', active); btn.classList.toggle('border-gray-800', active);
+            btn.classList.toggle('bg-white', !active); btn.classList.toggle('text-gray-600', !active); btn.classList.toggle('border-gray-200', !active);
+            renderAllList();
+        }
+        function passesAllListFilters(store) {
+            for (const key of allListFilters) {
+                if (key === 'large') { if (!store.large) return false; continue; }
+                if (store.hours[key] !== undefined) { if (!store.hours[key]) return false; continue; }
+                if (store.services[key] !== undefined) { if (!store.services[key]) return false; continue; }
+            }
+            return true;
+        }
+        function renderAllList() {
+            const list = document.getElementById('allList');
+            let items = allStoresDB.filter(passesAllListFilters);
+            if (map) items = [...items].sort((a, b) => map.distance(map.getCenter(), [a.lat, a.lng]) - map.distance(map.getCenter(), [b.lat, b.lng]));
+            if (items.length === 0) {
+                list.innerHTML = `<div class="p-8 text-center text-gray-400 font-medium">조건에 맞는 약국이 없습니다.</div>`;
+                return;
+            }
+            list.innerHTML = items.map(s => createStoreCardHTML(s)).join('');
+        }
+
+        // ── 지도 서비스 필터 팝업 ────────────────────────────────────────
+        function renderServiceFilterChips() {
+            document.getElementById('serviceFilterChips').innerHTML = SERVICE_DEFS.map(s => {
+                const active = mapServiceFilters.has(s.key);
+                return `<button onclick="toggleMapServiceFilter('${s.key}')" id="msf-${s.key}" class="chip-btn ${active ? 'active' : 'bg-white text-gray-600 border-gray-200'} px-3 py-3 rounded-xl border text-sm font-bold flex items-center gap-2">
+                    <span>${s.emoji}</span><span>${s.label}</span>
+                </button>`;
+            }).join('');
+            const badge = document.getElementById('filterBadge');
+            if (mapServiceFilters.size > 0) { badge.innerText = mapServiceFilters.size; badge.classList.remove('hidden'); }
+            else badge.classList.add('hidden');
+        }
+        function toggleMapServiceFilter(key) {
+            if (mapServiceFilters.has(key)) mapServiceFilters.delete(key); else mapServiceFilters.add(key);
+            renderServiceFilterChips();
+        }
+        function clearServiceFilters() { mapServiceFilters.clear(); renderServiceFilterChips(); }
+        function openServiceFilterModal() {
+            renderServiceFilterChips();
+            document.getElementById('serviceFilterModal').classList.remove('hidden');
+            document.getElementById('serviceFilterModal').classList.add('flex');
+        }
+        function closeServiceFilterModal() {
+            document.getElementById('serviceFilterModal').classList.add('hidden');
+            document.getElementById('serviceFilterModal').classList.remove('flex');
+        }
+        function applyServiceFiltersAndClose() {
+            closeServiceFilterModal();
+            loadStoresInRadius();
+            showToast(mapServiceFilters.size > 0 ? `${mapServiceFilters.size}개 조건으로 필터링했습니다.` : '필터를 초기화했습니다.');
+        }
+
+        // ── 리스트 뷰 (지도 위 오버레이) ─────────────────────────────────
+        let isListView = false;
+        function toggleListView() {
+            isListView = !isListView;
+            const overlay = document.getElementById('listViewOverlay');
+            const btn = document.getElementById('listViewToggleBtn');
+            const panel = document.getElementById('mapControlPanel');
+            if (isListView) {
+                overlay.classList.remove('hidden'); overlay.classList.add('flex');
+                btn.classList.add('text-emerald-600', 'bg-emerald-50'); btn.classList.remove('text-gray-600');
+                Array.from(panel.children).slice(1).forEach(el => el.classList.add('invisible'));
+                renderListView();
+            } else {
+                overlay.classList.add('hidden'); overlay.classList.remove('flex');
+                btn.classList.remove('text-emerald-600', 'bg-emerald-50'); btn.classList.add('text-gray-600');
+                Array.from(panel.children).forEach(el => el.classList.remove('invisible'));
+            }
+        }
+        function renderListView() {
+            const body = document.getElementById('listViewBody');
+            const subtitle = document.getElementById('listViewSubtitle');
+            subtitle.textContent = `반경 ${currentRadius >= 1000 ? currentRadius/1000+'km' : currentRadius+'m'} 내 ${storeMarkersData.length}개 약국`;
+            if (storeMarkersData.length === 0) {
+                body.innerHTML = `<div class="text-center text-gray-400 py-16 flex flex-col items-center gap-2"><i class="fa-solid fa-store-slash text-4xl text-gray-300"></i><p class="text-sm font-bold">주변에 약국이 없습니다</p><p class="text-xs">지도를 이동하거나 반경을 넓혀보세요</p></div>`;
+                return;
+            }
+            const sorted = [...storeMarkersData].sort((a, b) => map.distance(map.getCenter(), [a.lat, a.lng]) - map.distance(map.getCenter(), [b.lat, b.lng]));
+            body.innerHTML = sorted.map(s => createStoreCardHTML(s)).join('');
+        }
+
+        // ──────────────────────────────────────────────────────────────────
+        let toastTimeout;
+        function showToast(msg, duration = 2000) {
+            const t = document.getElementById('toast');
+            document.getElementById('toastMsg').innerText = msg;
+            t.classList.remove('opacity-0'); t.classList.add('opacity-100');
+            clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => { t.classList.remove('opacity-100'); t.classList.add('opacity-0'); }, duration);
+        }
+    </script>
+    <script type="module" src="ads.js"></script>
+</body>
+</html>
