@@ -2,3 +2,4 @@ node_modules/
 dist/
 .env
 scripts/.moi-*.json
+scripts/.removed-closed-egen.json

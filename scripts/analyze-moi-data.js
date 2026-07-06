@@ -51,8 +51,10 @@ const idx = Object.fromEntries(header.map((h, i) => [h, i]));
 const data = rows.slice(1).filter(r => r.length === header.length);
 console.error(`총 ${data.length}행 파싱 완료`);
 
-const open = data.filter(r => !r[idx['영업상태명']].includes('폐업'));
-console.error(`폐업 제외 ${open.length}건`);
+// "폐업"만 제외하면 안 된다 - "취소/말소/만료/정지/중지"·"휴업"도 지금 실제로 영업 중이
+// 아니므로 함께 제외해야 한다. 확실하게 "영업/정상" 상태인 것만 남긴다.
+const open = data.filter(r => r[idx['영업상태명']] === '영업/정상');
+console.error(`영업중(영업/정상)만 ${open.length}건 (전체 ${data.length}건 중 폐업·취소·휴업 등 제외)`);
 
 const all = open.map(r => {
   const rawArea = parseFloat(r[idx['약국영업면적']]);
