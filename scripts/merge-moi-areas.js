@@ -7,19 +7,22 @@ const OVERRIDES_FILE = 'data/service-overrides.json';
 const overrides = JSON.parse(fs.readFileSync(OVERRIDES_FILE, 'utf-8'));
 const { matched } = JSON.parse(fs.readFileSync('scripts/.moi-match-result.json', 'utf-8'));
 
+// 전체(3만여 건) 규모라 일반약국까지 _source 텍스트를 다 남기면 파일이 너무 커진다.
+// 큐레이션 근거를 남길 가치가 있는 대형/창고형만 _source를 붙이고, 일반약국은 area만 기록.
 let added = 0, updated = 0;
 for (const m of matched) {
+  if (m.moi.area === null) continue; // 면적 정보 자체가 없으면 등록할 값이 없음
   const hpid = m.egen.id.replace(/^ph_/, '');
   const existing = overrides[hpid];
+  const noteworthy = m.moi.sizeTier !== 'general';
   if (existing) {
     existing.area = m.moi.area;
     delete existing.large; // area 기반 자동 분류로 대체
     updated++;
   } else {
-    overrides[hpid] = {
-      area: m.moi.area,
-      _source: `행정안전부 전국약국표준데이터(약국영업면적 ${m.moi.area}㎡) - ${m.moi.roadAddr || m.moi.lotAddr}`,
-    };
+    overrides[hpid] = noteworthy
+      ? { area: m.moi.area, _source: `행정안전부 전국약국표준데이터(약국영업면적 ${m.moi.area}㎡) - ${m.moi.roadAddr || m.moi.lotAddr}` }
+      : { area: m.moi.area };
     added++;
   }
 }

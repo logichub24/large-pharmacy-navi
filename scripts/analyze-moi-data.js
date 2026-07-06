@@ -1,5 +1,5 @@
 // 사용자가 다운로드한 행정안전부(지방행정인허가) 전국약국표준데이터 CSV를 분석.
-// 1) 폐업 제외 2) 약국영업면적 기준 일반/대형/창고형 3단계 분류
+// 폐업 제외 전체를 추출(면적 있으면 일반/대형/창고형 자동 분류, 없으면 일반약국 기본값).
 //
 // 분류 기준(앱 자체 기준, 법적 기준 아님): 일반<231㎡, 231≤대형<991㎡, 창고형≥991㎡ (70평/300평)
 const fs = require('fs');
@@ -36,6 +36,7 @@ function parseCsv(text) {
 }
 
 function classifyBySize(area) {
+  if (area === null) return 'general';
   if (area >= WAREHOUSE_MIN) return 'warehouse';
   if (area >= LARGE_MIN) return 'large';
   return 'general';
@@ -53,32 +54,27 @@ console.error(`총 ${data.length}행 파싱 완료`);
 const open = data.filter(r => !r[idx['영업상태명']].includes('폐업'));
 console.error(`폐업 제외 ${open.length}건`);
 
-const withArea = open
-  .map(r => ({
+const all = open.map(r => {
+  const rawArea = parseFloat(r[idx['약국영업면적']]);
+  const area = rawArea > 0 ? rawArea : null;
+  return {
     manageNo: r[idx['관리번호']],
     name: r[idx['사업장명']],
-    area: parseFloat(r[idx['약국영업면적']]),
+    area,
+    sizeTier: classifyBySize(area),
     roadAddr: r[idx['도로명주소']],
     lotAddr: r[idx['지번주소']],
     phone: r[idx['전화번호']],
     status: r[idx['영업상태명']],
     x5174: parseFloat(r[idx['좌표정보(X)']]),
     y5174: parseFloat(r[idx['좌표정보(Y)']]),
-  }))
-  .filter(x => x.area > 0);
-
-console.error(`면적 유효값(>0) ${withArea.length}/${open.length}건`);
+  };
+});
 
 const tierCounts = { general: 0, large: 0, warehouse: 0 };
-withArea.forEach(x => { x.sizeTier = classifyBySize(x.area); tierCounts[x.sizeTier]++; });
+all.forEach(x => tierCounts[x.sizeTier]++);
+console.error(`\n분류 결과: 일반약국 ${tierCounts.general}곳 / 대형약국 ${tierCounts.large}곳 / 창고형약국 ${tierCounts.warehouse}곳`);
+console.error(`면적 데이터 있는 곳: ${all.filter(x => x.area !== null).length}/${all.length}건`);
 
-console.error(`\n분류 결과(면적 데이터 있는 곳 기준):`);
-console.error(`  일반약국(<231㎡): ${tierCounts.general}곳`);
-console.error(`  대형약국(231~991㎡): ${tierCounts.large}곳`);
-console.error(`  창고형약국(991㎡+): ${tierCounts.warehouse}곳`);
-
-const largeAndUp = withArea.filter(x => x.sizeTier !== 'general');
-largeAndUp.sort((a, b) => b.area - a.area);
-
-fs.writeFileSync('scripts/.moi-large-candidates.json', JSON.stringify(largeAndUp, null, 2), 'utf-8');
-console.error(`\nscripts/.moi-large-candidates.json 저장 완료 (대형+창고형 ${largeAndUp.length}건)`);
+fs.writeFileSync('scripts/.moi-large-candidates.json', JSON.stringify(all), 'utf-8');
+console.error(`\nscripts/.moi-large-candidates.json 저장 완료 (전체 ${all.length}건)`);
