@@ -615,11 +615,31 @@
             return nearest;
         }
 
+        // 각 시/도의 실제 좌표 범위(minLat~maxLat, minLng~maxLng) 안에 점이 들어있는지로 판별.
+        // 단순 중심점 거리 비교(nearestProvinceByDistance)는 대전처럼 작고 조밀한 도시의 중심점이
+        // 오히려 전북 무주군 같은 외곽 군 지역보다 "가깝게" 계산돼 엉뚱한 시/도로 잘못 판별하는
+        // 문제가 있어서, 실제 좌표 범위 포함 여부를 우선 확인하는 방식으로 교체.
+        function findProvinceForPoint(lat, lng) {
+            const containing = STORE_INDEX.filter(p =>
+                p.minLat !== undefined && lat >= p.minLat && lat <= p.maxLat && lng >= p.minLng && lng <= p.maxLng
+            );
+            if (containing.length === 1) return containing[0];
+            if (containing.length > 1) {
+                // 인접한 시/도끼리 좌표 범위가 겹치는 경우 - 중심점이 더 가까운 쪽 채택
+                return containing.reduce((best, p) => {
+                    const d = (p.centerLat - lat) ** 2 + (p.centerLng - lng) ** 2;
+                    const bd = (best.centerLat - lat) ** 2 + (best.centerLng - lng) ** 2;
+                    return d < bd ? p : best;
+                });
+            }
+            return nearestProvinceByDistance(lat, lng); // 어느 범위에도 안 들어가면(해상 등) 기존 방식 폴백
+        }
+
         async function loadStoresForLocation(lat, lng) {
             if (STORE_INDEX.length === 0) return false;
             const provinceName = await getProvinceNameByCoords(lat, lng);
             let nearest = provinceName ? STORE_INDEX.find(p => p.province === provinceName) : null;
-            if (!nearest) nearest = nearestProvinceByDistance(lat, lng);
+            if (!nearest) nearest = findProvinceForPoint(lat, lng);
             if (!nearest || nearest.file === loadedProvinceFile) return false;
 
             try {

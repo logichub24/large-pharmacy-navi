@@ -249,10 +249,14 @@ function writeOutputs(byProvince) {
     if (stores.length === 0) continue;
     const fileName = `${province}.json`;
     fs.writeFileSync(path.join(OUT_DIR, fileName), JSON.stringify(stores), 'utf-8');
+    const lats = stores.map((x) => x.lat), lngs = stores.map((x) => x.lng);
     indexByProvince.set(province, {
       province, file: fileName, count: stores.length,
-      centerLat: stores.reduce((s, x) => s + x.lat, 0) / stores.length,
-      centerLng: stores.reduce((s, x) => s + x.lng, 0) / stores.length,
+      centerLat: lats.reduce((s, x) => s + x, 0) / stores.length,
+      centerLng: lngs.reduce((s, x) => s + x, 0) / stores.length,
+      // 프론트엔드가 위치→시/도 판별 시 중심점 거리 대신 실제 좌표범위 포함 여부를 우선 쓰도록 지원
+      minLat: Math.min(...lats), maxLat: Math.max(...lats),
+      minLng: Math.min(...lngs), maxLng: Math.max(...lngs),
     });
   }
   const index = [...indexByProvince.values()];

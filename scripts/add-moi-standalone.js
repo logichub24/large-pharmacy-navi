@@ -82,9 +82,12 @@ for (const [province, newStores] of byProvince.entries()) {
   const toAdd = newStores.filter(s => !existingIds.has(s.id));
   stores.push(...toAdd);
   fs.writeFileSync(filePath, JSON.stringify(stores), 'utf-8');
+  const lats = stores.map((x) => x.lat), lngs = stores.map((x) => x.lng);
   entry.count = stores.length;
-  entry.centerLat = stores.reduce((s, x) => s + x.lat, 0) / stores.length;
-  entry.centerLng = stores.reduce((s, x) => s + x.lng, 0) / stores.length;
+  entry.centerLat = lats.reduce((s, x) => s + x, 0) / stores.length;
+  entry.centerLng = lngs.reduce((s, x) => s + x, 0) / stores.length;
+  entry.minLat = Math.min(...lats); entry.maxLat = Math.max(...lats);
+  entry.minLng = Math.min(...lngs); entry.maxLng = Math.max(...lngs);
   console.error(`${entry.file}: +${toAdd.length}건 추가 (총 ${stores.length}건)`);
 }
 
