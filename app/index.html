@@ -158,12 +158,14 @@
                 <i class="fa-solid fa-location-crosshairs text-lg"></i>
             </button>
 
-            <!-- Radius Selector (2×2 그리드) -->
+            <!-- Radius Selector (2×3 그리드) - 군/면 등 외곽 지역은 약국 밀도가 낮아 3km/4km까지 지원 -->
             <div class="bg-white/95 backdrop-blur-md rounded-2xl shadow-md border border-gray-100 grid grid-cols-2 overflow-hidden pointer-events-auto w-[76px]">
                 <button onclick="setRadius(300)" id="rad300" class="text-[9px] font-black py-2 w-full border-b border-r border-gray-100 text-gray-500 hover:bg-gray-50 transition">300m</button>
                 <button onclick="setRadius(500)" id="rad500" class="text-[9px] font-black py-2 w-full border-b border-gray-100 text-emerald-600 bg-emerald-50 transition">500m</button>
-                <button onclick="setRadius(1000)" id="rad1000" class="text-[9px] font-black py-2 w-full border-r border-gray-100 text-gray-500 hover:bg-gray-50 transition">1km</button>
-                <button onclick="setRadius(2000)" id="rad2000" class="text-[9px] font-black py-2 w-full text-gray-500 hover:bg-gray-50 transition">2km</button>
+                <button onclick="setRadius(1000)" id="rad1000" class="text-[9px] font-black py-2 w-full border-b border-r border-gray-100 text-gray-500 hover:bg-gray-50 transition">1km</button>
+                <button onclick="setRadius(2000)" id="rad2000" class="text-[9px] font-black py-2 w-full border-b border-gray-100 text-gray-500 hover:bg-gray-50 transition">2km</button>
+                <button onclick="setRadius(3000)" id="rad3000" class="text-[9px] font-black py-2 w-full border-r border-gray-100 text-gray-500 hover:bg-gray-50 transition">3km</button>
+                <button onclick="setRadius(4000)" id="rad4000" class="text-[9px] font-black py-2 w-full text-gray-500 hover:bg-gray-50 transition">4km</button>
             </div>
         </div>
 
@@ -945,7 +947,7 @@
         }
 
         function highlightRadiusButton(r) {
-            [300, 500, 1000, 2000].forEach(val => {
+            [300, 500, 1000, 2000, 3000, 4000].forEach(val => {
                 const btn = document.getElementById(`rad${val}`);
                 if (val === r) { btn.classList.add('text-emerald-600', 'bg-emerald-50'); btn.classList.remove('text-gray-500'); }
                 else { btn.classList.remove('text-emerald-600', 'bg-emerald-50'); btn.classList.add('text-gray-500'); }
