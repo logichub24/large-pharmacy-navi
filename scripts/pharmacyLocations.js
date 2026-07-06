@@ -195,6 +195,18 @@ async function fetchDetail(budget, serviceKey, hpid) {
   return items[0] || null;
 }
 
+// 일반/대형/창고형 분류 기준(앱 자체 기준 - 법적 기준 아님): 70평(231㎡) / 300평(991㎡)
+const LARGE_MIN_AREA = 231;
+const WAREHOUSE_MIN_AREA = 991;
+function classifySizeTier(area, manualTier) {
+  if (typeof area === 'number' && area > 0) {
+    if (area >= WAREHOUSE_MIN_AREA) return 'warehouse';
+    if (area >= LARGE_MIN_AREA) return 'large';
+    return 'general';
+  }
+  return manualTier || 'general'; // 면적 데이터 없으면 수동 등급(service-overrides.json) 사용, 없으면 일반약국
+}
+
 function buildStoreRecord(item, overrides) {
   const hpid = item.hpid;
   const lat = parseFloat(item.wgs84Lat);
@@ -203,6 +215,7 @@ function buildStoreRecord(item, overrides) {
 
   const hours = deriveHoursFlags(item) || { is24h: false, open: '09:00', close: '20:00', open365: false, nightService: false, holidayOpen: false };
   const override = overrides[hpid] || {};
+  const area = typeof override.area === 'number' ? override.area : null;
 
   return {
     id: `ph_${hpid}`,
@@ -210,7 +223,8 @@ function buildStoreRecord(item, overrides) {
     lat, lng,
     address: item.dutyAddr || '',
     phone: item.dutyTel1 || null,
-    large: override.large ?? false, // "대형약국" 여부는 공공데이터에 없어 기본값 false. service-overrides.json에서 지정.
+    area, // 행정안전부 전국약국표준데이터 기준 영업면적(㎡). 모르면 null.
+    sizeTier: classifySizeTier(area, override.sizeTier), // 'general' | 'large' | 'warehouse' - area가 있으면 자동 계산
     hours,
     services: {
       parking: override.services?.parking ?? null,
