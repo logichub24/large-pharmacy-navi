@@ -289,7 +289,7 @@
             </div>
             <div class="px-5 pb-3 border-b border-gray-100 shrink-0 flex justify-between items-start">
                 <div class="flex items-start gap-3 min-w-0">
-                    <div id="bsStoreLogo" class="w-11 h-11 rounded-full bg-emerald-100 flex items-center justify-center font-black text-emerald-700 text-lg shadow-inner shrink-0">🏥</div>
+                    <div id="bsStoreLogo" class="w-11 h-11 rounded-full bg-emerald-100 flex items-center justify-center font-black text-emerald-700 text-lg shadow-inner shrink-0">🏬</div>
                     <div class="min-w-0">
                         <div class="flex items-center gap-1.5 flex-wrap">
                             <h2 id="bsStoreName" class="text-base font-black text-gray-900 truncate">약국명</h2>
@@ -500,9 +500,9 @@
         // 일반/대형/창고형 3단계 분류 - 앱 자체 분류 기준(공개된 영업면적 데이터 기반)이며 법적 기준은 아님.
         // 기준: 일반<231㎡(70평), 231≤대형<991㎡, 창고형≥991㎡(300평). 면적 데이터가 없는 매장은 기본 일반약국.
         const SIZE_TIERS = {
-            general:   { label: '일반약국',   emoji: '➕', badgeBg: 'bg-gray-100',  badgeText: 'text-gray-500' },
-            large:     { label: '대형약국',   emoji: '🏥', badgeBg: 'bg-blue-50',   badgeText: 'text-blue-600' },
-            warehouse: { label: '창고형약국', emoji: '📦', badgeBg: 'bg-purple-50', badgeText: 'text-purple-600' },
+            general:   { label: '일반약국',   emoji: '📍', badgeBg: 'bg-gray-100',  badgeText: 'text-gray-500' },
+            large:     { label: '대형약국',   emoji: '🏬', badgeBg: 'bg-blue-50',   badgeText: 'text-blue-600' },
+            warehouse: { label: '창고형약국', emoji: '🛒', badgeBg: 'bg-purple-50', badgeText: 'text-purple-600' },
         };
         // 상세시트를 "건강 쇼핑" 구성으로 보여줄 등급(대형·창고형). 일반약국은 간단한 조제안내만.
         function isShoppingTier(store) { return store.sizeTier === 'large' || store.sizeTier === 'warehouse'; }
