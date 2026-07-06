@@ -2,120 +2,120 @@
   {
     "province": "세종특별자치시",
     "file": "세종특별자치시.json",
-    "count": 160,
-    "centerLat": 36.52242326549046,
-    "centerLng": 127.26914202533769
+    "count": 161,
+    "centerLat": 36.52209118645265,
+    "centerLng": 127.26911812175229
   },
   {
     "province": "서울특별시",
     "file": "서울특별시.json",
-    "count": 5298,
-    "centerLat": 37.5455005719309,
-    "centerLng": 126.99736941632061
+    "count": 5309,
+    "centerLat": 37.545486588432496,
+    "centerLng": 126.99730467482433
   },
   {
     "province": "부산광역시",
     "file": "부산광역시.json",
-    "count": 1673,
-    "centerLat": 35.16947824573769,
-    "centerLng": 129.0577066698496
+    "count": 1679,
+    "centerLat": 35.169384173798356,
+    "centerLng": 129.0578704344772
   },
   {
     "province": "대구광역시",
     "file": "대구광역시.json",
-    "count": 1387,
-    "centerLat": 35.860112888050814,
-    "centerLng": 128.58318596615376
+    "count": 1393,
+    "centerLat": 35.86017192890124,
+    "centerLng": 128.58328610026086
   },
   {
     "province": "인천광역시",
     "file": "인천광역시.json",
-    "count": 1302,
-    "centerLat": 37.486019004713626,
-    "centerLng": 126.68105136267779
+    "count": 1304,
+    "centerLat": 37.48602124059311,
+    "centerLng": 126.68104439739166
   },
   {
     "province": "광주광역시",
     "file": "광주광역시.json",
-    "count": 716,
-    "centerLat": 35.16191105185668,
-    "centerLng": 126.87842433386133
+    "count": 721,
+    "centerLat": 35.161905895486036,
+    "centerLng": 126.87823402828819
   },
   {
     "province": "대전광역시",
     "file": "대전광역시.json",
-    "count": 779,
-    "centerLat": 36.347774512423904,
-    "centerLng": 127.39265243421785
+    "count": 780,
+    "centerLat": 36.34773730053309,
+    "centerLng": 127.3926550319251
   },
   {
     "province": "울산광역시",
     "file": "울산광역시.json",
-    "count": 441,
-    "centerLat": 35.54229110833626,
-    "centerLng": 129.32582788500056
+    "count": 443,
+    "centerLat": 35.542560956997235,
+    "centerLng": 129.32594400594354
   },
   {
     "province": "경기도",
     "file": "경기도.json",
-    "count": 6068,
-    "centerLat": 37.43055032033596,
-    "centerLng": 127.00703334862574
+    "count": 6072,
+    "centerLat": 37.43046049880185,
+    "centerLng": 127.00705277250566
   },
   {
     "province": "강원특별자치도",
     "file": "강원특별자치도.json",
-    "count": 702,
-    "centerLat": 37.656839914094625,
-    "centerLng": 128.24563355223825
+    "count": 704,
+    "centerLat": 37.656696804935635,
+    "centerLng": 128.24548568998037
   },
   {
     "province": "충청북도",
     "file": "충청북도.json",
-    "count": 730,
-    "centerLat": 36.73489849768577,
-    "centerLng": 127.62943209663318
+    "count": 731,
+    "centerLat": 36.734818493426005,
+    "centerLng": 127.6292368772018
   },
   {
     "province": "충청남도",
     "file": "충청남도.json",
-    "count": 981,
-    "centerLat": 36.63409754406985,
-    "centerLng": 126.93760905854978
+    "count": 983,
+    "centerLat": 36.63414181228876,
+    "centerLng": 126.93798593701575
   },
   {
     "province": "전북특별자치도",
     "file": "전북특별자치도.json",
-    "count": 982,
-    "centerLat": 35.81709472859613,
-    "centerLng": 127.02077429424516
+    "count": 985,
+    "centerLat": 35.81682396537609,
+    "centerLng": 127.02117279714972
   },
   {
     "province": "전라남도",
     "file": "전라남도.json",
-    "count": 827,
-    "centerLat": 34.87022691007311,
-    "centerLng": 127.0321057869216
+    "count": 829,
+    "centerLat": 34.86872256377357,
+    "centerLng": 127.031210142076
   },
   {
     "province": "경상북도",
     "file": "경상북도.json",
-    "count": 1123,
-    "centerLat": 36.15146839568929,
-    "centerLng": 128.80144623215716
+    "count": 1124,
+    "centerLat": 36.151439833130105,
+    "centerLng": 128.80104757705098
   },
   {
     "province": "경상남도",
     "file": "경상남도.json",
-    "count": 1397,
-    "centerLat": 35.21137985747119,
-    "centerLng": 128.54906365467988
+    "count": 1403,
+    "centerLat": 35.21145046758823,
+    "centerLng": 128.54928617247933
   },
   {
     "province": "제주특별자치도",
     "file": "제주특별자치도.json",
-    "count": 316,
-    "centerLat": 33.441837702132524,
-    "centerLng": 126.50952993643708
+    "count": 318,
+    "centerLat": 33.44218457802666,
+    "centerLng": 126.50935679929354
   }
 ]

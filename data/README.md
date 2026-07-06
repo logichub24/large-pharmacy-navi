@@ -66,10 +66,15 @@ data.go.kr에서 "전국약국표준데이터"(지방행정인허가데이터)�
    `scripts/.moi-match-result.json`에 저장
 4. `node scripts/merge-moi-areas.js` - 매칭된 곳의 `area`를 `service-overrides.json`에 병합
 5. `node scripts/applyOverrides.js` - 로컬 `app/stores/*.json`에 즉시 반영
+6. `node scripts/add-moi-standalone.js` - 4번에서도 매칭 실패한 곳을 독립 매장으로 추가
+   (행안부 데이터 자체에 좌표(EPSG:5174)가 있으므로 E-Gen 매칭 없이도 위치 표기 가능.
+   `proj4`로 WGS84 변환. 단, 국립중앙의료원 운영시간 데이터가 없어 `hours: null`로
+   저장되고, 앱에서는 "영업시간 정보 없음"으로 정직하게 표시됨 - 가짜 시간을 채우지 않음)
 
 이름+주소 자동 매칭이라 일부(전국 데이터 기준 약 20~30%)는 실패할 수 있습니다
 (신규 개설이라 아직 우리 데이터에 없거나, 상호명이 다르게 등록된 경우 등).
-매칭 실패 목록은 `scripts/.moi-match-result.json`의 `unmatched`에서 확인할 수 있습니다.
+매칭 실패 목록은 `scripts/.moi-match-result.json`의 `unmatched`에서 확인할 수 있고,
+좌표가 있는 건은 6번 스크립트로 구제됩니다(좌표 자체가 없는 나머지는 진짜로 표기 불가).
 
 `hpid`는 국립중앙의료원 API 응답의 `hpid` 필드이며, `scripts/.pharmacy-sync-cache.json`을 열어
 약국명으로 찾아볼 수 있습니다(스크립트를 한 번 이상 실행한 뒤 생성됨).

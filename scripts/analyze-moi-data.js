@@ -55,12 +55,15 @@ console.error(`폐업 제외 ${open.length}건`);
 
 const withArea = open
   .map(r => ({
+    manageNo: r[idx['관리번호']],
     name: r[idx['사업장명']],
     area: parseFloat(r[idx['약국영업면적']]),
     roadAddr: r[idx['도로명주소']],
     lotAddr: r[idx['지번주소']],
     phone: r[idx['전화번호']],
     status: r[idx['영업상태명']],
+    x5174: parseFloat(r[idx['좌표정보(X)']]),
+    y5174: parseFloat(r[idx['좌표정보(Y)']]),
   }))
   .filter(x => x.area > 0);
 

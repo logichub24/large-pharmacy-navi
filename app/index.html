@@ -802,8 +802,10 @@
         function toggleSatelliteView() { applySatelliteView(!isSatelliteView); }
 
         // isOpenNow: 공휴일 판정은 일요일로 근사(정확한 공휴일 캘린더 연동은 추후 과제)
+        // 운영시간 정보가 없는 매장(hours:null)은 영업 여부를 알 수 없으므로 null 반환.
         function isOpenNow(store) {
             const h = store.hours;
+            if (!h) return null;
             if (h.is24h) return true;
             const now = new Date();
             const day = now.getDay();
@@ -820,7 +822,8 @@
 
         function passesServiceFilters(store) {
             for (const key of mapServiceFilters) {
-                if (store.hours[key] !== undefined) { if (!store.hours[key]) return false; continue; }
+                if (store.hours && store.hours[key] !== undefined) { if (!store.hours[key]) return false; continue; }
+                if (!store.hours && ['open365', 'nightService', 'holidayOpen'].includes(key)) return false; // 운영시간 모르면 필터 통과 못함
                 if (store.services[key] !== undefined) { if (!store.services[key]) return false; continue; }
             }
             return true;
@@ -894,9 +897,9 @@
         function updateDashboardChips() {
             const openCount = storeMarkersData.filter(isOpenNow).length;
             document.getElementById('chipOpenNow').innerText = `${openCount}곳`;
-            document.getElementById('chip365').innerText = `${storeMarkersData.filter(s => s.hours.open365).length}곳`;
-            document.getElementById('chipNight').innerText = `${storeMarkersData.filter(s => s.hours.nightService).length}곳`;
-            document.getElementById('chipHoliday').innerText = `${storeMarkersData.filter(s => s.hours.holidayOpen).length}곳`;
+            document.getElementById('chip365').innerText = `${storeMarkersData.filter(s => s.hours && s.hours.open365).length}곳`;
+            document.getElementById('chipNight').innerText = `${storeMarkersData.filter(s => s.hours && s.hours.nightService).length}곳`;
+            document.getElementById('chipHoliday').innerText = `${storeMarkersData.filter(s => s.hours && s.hours.holidayOpen).length}곳`;
         }
 
         function quickFilterChip(key) {
@@ -1040,6 +1043,7 @@
 
         // ── 매장 상세 ────────────────────────────────────────────────────
         function formatHoursText(store) {
+            if (!store.hours) return '영업시간 정보 없음';
             if (store.hours.is24h) return '24시간 운영';
             const [oh, om] = store.hours.open.split(':').map(Number);
             const [ch, cm] = store.hours.close.split(':').map(Number);
@@ -1061,8 +1065,8 @@
 
             const open = isOpenNow(store);
             const badge = document.getElementById('bsOpenBadge');
-            badge.innerText = open ? '영업중' : '영업종료';
-            badge.className = `text-[10px] font-black px-1.5 py-0.5 rounded shrink-0 ${open ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-200 text-gray-500'}`;
+            badge.innerText = open === null ? '정보없음' : open ? '영업중' : '영업종료';
+            badge.className = `text-[10px] font-black px-1.5 py-0.5 rounded shrink-0 ${open === null ? 'bg-gray-100 text-gray-400' : open ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-200 text-gray-500'}`;
 
             const typeBadge = document.getElementById('bsTypeBadge');
             typeBadge.innerText = tier.label;
@@ -1087,7 +1091,8 @@
                     ? '창고형 대형매장에서 의약품부터 건강기능식품·의료기기까지 한 번에 쇼핑하세요'
                     : '의약품은 물론 건강기능식품·의료기기까지, 건강 쇼핑하기 좋은 약국이에요';
                 const badgesEl = document.getElementById('bsServiceBadges');
-                const flags = { open365: store.hours.open365, nightService: store.hours.nightService, holidayOpen: store.hours.holidayOpen, ...store.services };
+                const h = store.hours || {};
+                const flags = { open365: h.open365, nightService: h.nightService, holidayOpen: h.holidayOpen, ...store.services };
                 badgesEl.innerHTML = SERVICE_DEFS.map(s => {
                     const on = !!flags[s.key];
                     return `<div class="flex flex-col items-center py-2 rounded-xl border ${on ? 'bg-emerald-50 border-emerald-100 text-emerald-700' : 'bg-gray-50 border-gray-100 text-gray-300'}">
@@ -1172,7 +1177,7 @@
                     <div class="flex-1 min-w-0">
                         <div class="flex items-center gap-1.5 flex-wrap">
                             <h4 class="font-black text-sm text-gray-900 truncate">${store.name}</h4>
-                            <span class="text-[9px] font-black px-1.5 py-0.5 rounded ${open ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-200 text-gray-500'}">${open ? '영업중' : '영업종료'}</span>
+                            <span class="text-[9px] font-black px-1.5 py-0.5 rounded ${open === null ? 'bg-gray-100 text-gray-400' : open ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-200 text-gray-500'}">${open === null ? '정보없음' : open ? '영업중' : '영업종료'}</span>
                             <span class="text-[9px] font-black px-1.5 py-0.5 rounded ${tier.badgeBg} ${tier.badgeText}">${tier.label}</span>
                         </div>
                         <p class="text-[11px] text-gray-500 mt-0.5">${formatHoursText(store)}${dist !== null ? ` · 약 ${dist}m` : ''}</p>
