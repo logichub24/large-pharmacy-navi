@@ -78,3 +78,18 @@ data.go.kr에서 "전국약국표준데이터"(지방행정인허가데이터)�
 
 `hpid`는 국립중앙의료원 API 응답의 `hpid` 필드이며, `scripts/.pharmacy-sync-cache.json`을 열어
 약국명으로 찾아볼 수 있습니다(스크립트를 한 번 이상 실행한 뒤 생성됨).
+
+## moi-standalone.json / closed-egen-ids.json (매일 동기화 유지용)
+
+위 6번의 `moi_` 단독 등록 약국과 폐업 판정 결과는 로컬 CSV에 의존하는 1회성 큐레이션이라
+GitHub Actions(CSV 없음)에서 재현되지 않습니다. 그래서 그 결과를 커밋 파일로 고정해둡니다.
+
+- `data/moi-standalone.json` - 시/도별 `moi_` 약국 배열. 매 동기화 시 E-Gen 결과에 병합됨.
+- `data/closed-egen-ids.json` - 폐업 판정된 `ph_` id 목록. 매 동기화 시 E-Gen 결과에서 제외됨.
+
+`scripts/pharmacyLocations.js`가 이 두 파일을 자동으로 읽어 적용하므로, E-Gen을 새로 받아
+시/도 파일을 덮어써도 `moi_` 약국이 유실되거나 폐업분이 되살아나지 않습니다.
+
+갱신이 필요하면(새 CSV 확보 시) `node scripts/build-closed-egen-list.js <csv경로>`로
+`closed-egen-ids.json`을 다시 생성하고, `moi-standalone.json`은 6번 절차 후
+`app/stores/*.json`에서 `moi_` 레코드를 추려 다시 저장하면 됩니다.

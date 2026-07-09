@@ -37,6 +37,11 @@ const BASE_URL = 'https://apis.data.go.kr/B552657/ErmctInsttInfoInqireService'; 
 const OUT_DIR = path.join(__dirname, '..', 'app', 'stores');
 const CACHE_FILE = path.join(__dirname, '.pharmacy-sync-cache.json');
 const OVERRIDES_FILE = path.join(__dirname, '..', 'data', 'service-overrides.json');
+// 행안부 단독 등록 약국(E-Gen에 없어 별도 복구한 moi_ 레코드)과 폐업 판정 E-Gen id 목록.
+// 이 둘은 로컬 CSV 기반의 1회성 큐레이션 결과를 커밋해둔 것으로, 매 동기화가 E-Gen을
+// 새로 받아 파일을 덮어써도 moi_ 약국이 유실되지 않고 폐업분이 되살아나지 않도록 재적용한다.
+const MOI_STANDALONE_FILE = path.join(__dirname, '..', 'data', 'moi-standalone.json');
+const CLOSED_IDS_FILE = path.join(__dirname, '..', 'data', 'closed-egen-ids.json');
 // 목록 조회(페이지네이션) + 상세 조회를 합쳐 이번 실행에서 쓸 최대 API 호출 수.
 // 하루 기본 할당량(1,000건) 아래로 여유있게 잡아둔다.
 const MAX_API_CALLS = parseInt(process.env.MAX_API_CALLS || '900', 10);
@@ -244,8 +249,12 @@ function writeOutputs(byProvince) {
   // 기존에 저장된 다른 시/도 파일들(이번 실행에서 손대지 않은 곳)을 살리기 위해 기존 index를 불러와 병합.
   const existingIndex = loadJsonSafe(path.join(OUT_DIR, 'index.json'), []);
   const indexByProvince = new Map(existingIndex.map((e) => [e.province, e]));
+  const moiByProvince = loadJsonSafe(MOI_STANDALONE_FILE, {}); // 시/도 -> moi_ 단독 등록 약국 배열
 
-  for (const [province, stores] of byProvince.entries()) {
+  for (const [province, egenStores] of byProvince.entries()) {
+    // E-Gen에서 새로 받은 약국 + 행안부 단독 등록 약국(moi_)을 합쳐 저장한다.
+    const moi = moiByProvince[province] || [];
+    const stores = egenStores.concat(moi);
     if (stores.length === 0) continue;
     const fileName = `${province}.json`;
     fs.writeFileSync(path.join(OUT_DIR, fileName), JSON.stringify(stores), 'utf-8');
@@ -280,6 +289,7 @@ async function run() {
   if (cache.cycleComplete) cache.doneProvinces = [];
   cache.cycleComplete = false;
   const overrides = loadJsonSafe(OVERRIDES_FILE, {}); // hpid -> { services, items } 수동 큐레이션
+  const closedIds = new Set(loadJsonSafe(CLOSED_IDS_FILE, [])); // 폐업 판정된 ph_ id (E-Gen이 아직 들고 있어 제외 필요)
 
   const budget = new ApiCallBudget(MAX_API_CALLS);
   const byProvince = new Map();
@@ -313,7 +323,7 @@ async function run() {
         }
 
         const store = buildStoreRecord(source, overrides);
-        if (store) stores.push(store);
+        if (store && !closedIds.has(store.id)) stores.push(store); // 폐업 판정 id는 제외
       }
 
       cache.doneProvinces.push(province); // 이 시/도는 처리 완료
