@@ -243,7 +243,7 @@
                     <button onclick="goHome()" class="text-gray-500 hover:text-gray-800 p-2"><i class="fa-solid fa-arrow-left text-xl"></i></button>
                     <div class="flex-1">
                         <h3 class="font-black text-lg text-gray-900"><i class="fa-solid fa-heart text-rose-500 mr-1"></i> 즐겨찾는 약국</h3>
-                        <p class="text-[10px] text-gray-500 font-bold leading-tight">자주 찾는 대형약국을 모아보세요.</p>
+                        <p class="text-[10px] text-gray-500 font-bold leading-tight">자주 찾는 약국을 모아보세요.</p>
                     </div>
                 </div>
                 <div class="flex-1 overflow-y-auto pb-4">
@@ -296,7 +296,7 @@
                         <div class="flex items-center gap-1.5 flex-wrap">
                             <h2 id="bsStoreName" class="text-base font-black text-gray-900 truncate">약국명</h2>
                             <span id="bsOpenBadge" class="text-[10px] font-black px-1.5 py-0.5 rounded shrink-0">영업중</span>
-                            <span id="bsTypeBadge" class="text-[10px] font-black px-1.5 py-0.5 rounded shrink-0">대형약국</span>
+                            <span id="bsTypeBadge" class="text-[10px] font-black px-1.5 py-0.5 rounded shrink-0">일반약국</span>
                         </div>
                         <p id="bsStoreAddr" class="text-[11px] text-gray-500 mt-0.5 truncate">주소</p>
                         <p id="bsStoreHours" class="text-[11px] text-gray-500 mt-0.5"></p>
@@ -393,13 +393,13 @@
                         </div>
                     </div>
                     <div>
-                        <p class="text-sm font-bold text-gray-800 mb-2">일반·대형·창고형 분류 기준</p>
+                        <p class="text-sm font-bold text-gray-800 mb-2">면적 기준 표시 안내</p>
                         <div class="bg-gray-50 rounded-xl p-3.5 space-y-1 text-xs text-gray-600 leading-relaxed">
-                            <p>본 앱은 전국 약국의 공개된 영업면적 데이터를 기준으로 자체 분류합니다.</p>
-                            <p>· 일반약국: 일반적인 규모의 동네 약국</p>
-                            <p>· 대형약국: 다양한 건강용품을 갖춘 큰 매장</p>
-                            <p>· 창고형약국: 대량 진열 방식의 초대형 매장</p>
-                            <p class="text-gray-400 pt-1">※ 법적으로 정해진 기준이 아닌, 앱 자체 분류 기준입니다. 면적 정보가 없는 약국은 일반약국으로 표시됩니다.</p>
+                            <p>본 앱은 공개된 약국 영업면적 데이터를 기준으로 표시합니다.</p>
+                            <p>· 일반약국: 영업면적 70평(231㎡) 미만</p>
+                            <p>· 70평 이상 약국: 70평 이상 ~ 300평 미만</p>
+                            <p>· 300평 이상 약국: 300평(991㎡) 이상</p>
+                            <p class="text-gray-400 pt-1">※ 70평 이상 약국 및 300평 이상 약국 표시는 공개된 영업면적 데이터를 기준으로 한 면적 기준 정보이며, 법적 또는 공인된 분류 기준이 아닙니다. 면적 정보가 없는 약국은 일반약국으로 표시됩니다.</p>
                         </div>
                     </div>
                     <div>
@@ -501,12 +501,13 @@
         ];
         const ITEM_MAP = Object.fromEntries(ITEM_CATS.map(c => [c.key, c]));
 
-        // 일반/대형/창고형 3단계 분류 - 앱 자체 분류 기준(공개된 영업면적 데이터 기반)이며 법적 기준은 아님.
-        // 기준: 일반<231㎡(70평), 231≤대형<991㎡, 창고형≥991㎡(300평). 면적 데이터가 없는 매장은 기본 일반약국.
+        // 면적 기준 3단계 분류 - 앱 자체 면적 기준(공개된 영업면적 데이터 기반)이며 법적·공인된 분류가 아님.
+        // 기준: 일반<231㎡(70평), 231≤"70평 이상"<991㎡, "300평 이상"≥991㎡. 면적 데이터가 없는 매장은 기본 일반약국.
+        // 명칭은 법적 분류 오인 방지를 위해 면적 수치 기준으로 표기(토스 검수 반영). short는 좁은 세그먼트 버튼용.
         const SIZE_TIERS = {
-            general:   { label: '일반약국',   emoji: '📍', badgeBg: 'bg-gray-100',  badgeText: 'text-gray-500' },
-            large:     { label: '대형약국',   emoji: '🏬', badgeBg: 'bg-blue-50',   badgeText: 'text-blue-600' },
-            warehouse: { label: '창고형약국', emoji: '🛒', badgeBg: 'bg-purple-50', badgeText: 'text-purple-600' },
+            general:   { label: '일반약국',       short: '일반',     emoji: '💊', badgeBg: 'bg-gray-100',  badgeText: 'text-gray-500' },
+            large:     { label: '70평 이상 약국',  short: '70평↑',   emoji: '🏬', badgeBg: 'bg-blue-50',   badgeText: 'text-blue-600' },
+            warehouse: { label: '300평 이상 약국', short: '300평↑',  emoji: '🏢', badgeBg: 'bg-purple-50', badgeText: 'text-purple-600' },
         };
         // 상세시트를 "건강 쇼핑" 구성으로 보여줄 등급(대형·창고형). 일반약국은 간단한 조제안내만.
         function isShoppingTier(store) { return store.sizeTier === 'large' || store.sizeTier === 'warehouse'; }
@@ -921,9 +922,9 @@
             if (!el) return;
             const opts = [
                 { key: null, label: '전체', count: counts.all },
-                { key: 'general', label: SIZE_TIERS.general.label, count: counts.general },
-                { key: 'large', label: SIZE_TIERS.large.label, count: counts.large },
-                { key: 'warehouse', label: SIZE_TIERS.warehouse.label, count: counts.warehouse },
+                { key: 'general', label: SIZE_TIERS.general.short, count: counts.general },
+                { key: 'large', label: SIZE_TIERS.large.short, count: counts.large },
+                { key: 'warehouse', label: SIZE_TIERS.warehouse.short, count: counts.warehouse },
             ];
             el.innerHTML = opts.map(o => {
                 const active = pharmacyTypeFilter === o.key;
@@ -1113,7 +1114,7 @@
             document.getElementById('bsStoreLogo').innerText = tier.emoji;
             document.getElementById('bsStoreName').innerText = store.name;
             document.getElementById('bsStoreAddr').innerText = store.address || '주소 정보 준비 중';
-            document.getElementById('bsStoreHours').innerText = formatHoursText(store) + (store.area ? ` · 약 ${store.area}㎡(${Math.round(store.area / 3.3)}평)` : '');
+            document.getElementById('bsStoreHours').innerText = formatHoursText(store) + (store.area ? ` · 영업면적 ${store.area}㎡ (약 ${Math.round(store.area / 3.305785)}평)` : '');
 
             const open = isOpenNow(store);
             const badge = document.getElementById('bsOpenBadge');
@@ -1140,7 +1141,7 @@
                 text.className = `text-[11px] ${prescription === true ? 'text-emerald-600 font-bold' : 'text-gray-500'}`;
             } else {
                 document.getElementById('bsShoppingBanner').textContent = store.sizeTier === 'warehouse'
-                    ? '창고형 대형매장에서 의약품부터 건강기능식품·의료기기까지 한 번에 쇼핑하세요'
+                    ? '영업면적 300평 이상의 넓은 매장, 의약품부터 건강기능식품·의료기기까지 한 번에 둘러보기 좋아요'
                     : '의약품은 물론 건강기능식품·의료기기까지, 건강 쇼핑하기 좋은 약국이에요';
                 const badgesEl = document.getElementById('bsServiceBadges');
                 const h = store.hours || {};
