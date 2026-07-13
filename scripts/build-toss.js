@@ -9,10 +9,29 @@ const path = require('path');
 const SRC_DIR = path.join(__dirname, '..', 'app');
 const DIST_DIR = path.join(__dirname, '..', 'dist');
 
+// .env의 VWORLD_KEY를 읽는다(있으면). 커밋되는 app/index.html에는 빈 값으로 두고,
+// 배포 산출물(dist)에만 실제 키를 주입해 저장소 히스토리에 키가 남지 않게 한다.
+function readEnvKey(name) {
+  if (process.env[name]) return process.env[name];
+  const envPath = path.join(__dirname, '..', '.env');
+  if (!fs.existsSync(envPath)) return '';
+  for (const line of fs.readFileSync(envPath, 'utf-8').split('\n')) {
+    const m = line.match(/^\s*([\w.]+)\s*=\s*(.*)\s*$/);
+    if (m && m[1] === name) return m[2].replace(/^["']|["']$/g, '');
+  }
+  return '';
+}
+
 fs.rmSync(DIST_DIR, { recursive: true, force: true });
 fs.mkdirSync(DIST_DIR, { recursive: true });
 
-fs.copyFileSync(path.join(SRC_DIR, 'index.html'), path.join(DIST_DIR, 'index.html'));
+const VWORLD_KEY = readEnvKey('VWORLD_KEY');
+let html = fs.readFileSync(path.join(SRC_DIR, 'index.html'), 'utf-8');
+if (VWORLD_KEY) {
+  html = html.replace(/const VWORLD_KEY = '[^']*';/, `const VWORLD_KEY = '${VWORLD_KEY}';`);
+  console.log('VWORLD_KEY 주입됨(dist 전용)');
+}
+fs.writeFileSync(path.join(DIST_DIR, 'index.html'), html, 'utf-8');
 fs.copyFileSync(path.join(SRC_DIR, 'ads.js'), path.join(DIST_DIR, 'ads.js'));
 
 for (const file of fs.readdirSync(SRC_DIR)) {
