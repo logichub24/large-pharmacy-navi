@@ -506,9 +506,9 @@
         // 기준: 일반<231㎡(70평), 231≤"70평 이상"<991㎡, "300평 이상"≥991㎡. 면적 데이터가 없는 매장은 기본 일반약국.
         // 명칭은 법적 분류 오인 방지를 위해 면적 수치 기준으로 표기(토스 검수 반영). short는 좁은 세그먼트 버튼용.
         const SIZE_TIERS = {
-            general:   { label: '일반약국',       short: '일반',     emoji: '💊', badgeBg: 'bg-gray-100',  badgeText: 'text-gray-500' },
-            large:     { label: '70평 이상 약국',  short: '70평↑',   emoji: '🏬', badgeBg: 'bg-blue-50',   badgeText: 'text-blue-600' },
-            warehouse: { label: '300평 이상 약국', short: '300평↑',  emoji: '🏢', badgeBg: 'bg-purple-50', badgeText: 'text-purple-600' },
+            general:   { label: '일반약국',       short: '💊 일반약국',   emoji: '💊', badgeBg: 'bg-gray-100',  badgeText: 'text-gray-500' },
+            large:     { label: '70평 이상 약국',  short: '🏬 70평 이상',  emoji: '🏬', badgeBg: 'bg-blue-50',   badgeText: 'text-blue-600' },
+            warehouse: { label: '300평 이상 약국', short: '🏢 300평 이상', emoji: '🏢', badgeBg: 'bg-purple-50', badgeText: 'text-purple-600' },
         };
         // 상세시트를 "건강 쇼핑" 구성으로 보여줄 등급(대형·창고형). 일반약국은 간단한 조제안내만.
         function isShoppingTier(store) { return store.sizeTier === 'large' || store.sizeTier === 'warehouse'; }
