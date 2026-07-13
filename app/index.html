@@ -86,16 +86,13 @@
     <div id="app-container">
 
         <!-- 상단 미니 헤더 -->
-        <div class="absolute top-0 left-0 w-full z-[100] pointer-events-none flex flex-col pt-3">
-            <div class="px-3 pb-2 flex items-center justify-between">
+        <div class="absolute top-0 left-0 w-full z-[100] pointer-events-none flex flex-col pt-2">
+            <div class="px-3 pb-2 flex items-center">
                 <div id="titlePill" class="bg-white/95 backdrop-blur-md px-4 py-2.5 rounded-full shadow-sm border border-gray-100 pointer-events-auto inline-flex items-center gap-2">
                     <h1 class="text-sm font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-teal-600 tracking-tight leading-none m-0">대형약국</h1>
                     <div class="w-px h-3 bg-gray-200"></div>
                     <p class="text-[10px] text-gray-500 font-bold leading-none m-0 pt-0.5">건강 쇼핑 + 대형약국 찾기</p>
                 </div>
-                <button onclick="openSettings()" class="w-9 h-9 bg-white/95 backdrop-blur-md rounded-full shadow-sm border border-gray-100 flex items-center justify-center text-gray-500 pointer-events-auto hover:bg-gray-50 active:scale-95 transition shrink-0 ml-auto">
-                    <i class="fa-solid fa-gear text-sm"></i>
-                </button>
             </div>
 
             <!-- 전체/일반약국/대형약국 3분할: "약을 사러" vs "건강 쇼핑하러" 갈 곳을 바로 고르는 핵심 선택지 -->
@@ -136,6 +133,10 @@
 
         <!-- 우측 맵 컨트롤 패널 -->
         <div id="mapControlPanel" class="absolute right-3 bottom-[120px] z-[400] flex flex-col gap-2 pointer-events-none items-end">
+            <!-- 설정(상단 헤더에서 이동: 상단 여백 확보) -->
+            <button onclick="openSettings()" class="w-[38px] h-[38px] bg-white/95 backdrop-blur-md rounded-full shadow-md border border-gray-100 flex items-center justify-center text-gray-600 pointer-events-auto hover:bg-gray-50 active:scale-95 transition" title="설정">
+                <i class="fa-solid fa-gear text-lg"></i>
+            </button>
             <!-- 서비스 필터 -->
             <button onclick="openServiceFilterModal()" id="serviceFilterBtn" class="w-[38px] h-[38px] bg-white/95 backdrop-blur-md rounded-full shadow-md border border-gray-100 flex items-center justify-center text-gray-600 pointer-events-auto hover:bg-gray-50 active:scale-95 transition relative" title="서비스 필터">
                 <i class="fa-solid fa-sliders text-lg"></i>
