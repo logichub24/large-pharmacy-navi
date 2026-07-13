@@ -544,7 +544,7 @@
         let pharmacyTypeFilter = null; // null=전체, 'general'=일반약국, 'large'=대형약국, 'warehouse'=창고형약국 (4분할, 지도/전체목록 공용)
         let mapTypeCounts = { all: 0, general: 0, large: 0, warehouse: 0 }; // 현재 반경 내 유형별 집계(세그먼트 배지용)
         let allStoresDB = [], REAL_STORES = [];
-        let STORE_INDEX = [], loadedProvinceFile = null;
+        let STORE_INDEX = [], loadedProvinceFiles = new Set(); // 이미 불러온 시/도 파일들(전국 누적 로딩)
         let searchItemFilter = null;
 
         // 실제 데이터가 준비되면 stores/index.json + stores/<시도>.json으로 자동 전환됩니다.
@@ -639,24 +639,47 @@
             return nearestProvinceByDistance(lat, lng); // 어느 범위에도 안 들어가면(해상 등) 기존 방식 폴백
         }
 
+        // 한 점 기준 반경(radiusMeters) 안에 좌표 범위가 걸치는 시/도들을 반환.
+        // 경계 지역(예: 하남↔서울)에서도 옆 도의 약국이 함께 나오도록 bbox를 반경만큼 확장해 판별한다.
+        function provincesNearPoint(lat, lng, radiusMeters) {
+            const latBuf = radiusMeters / 111000;
+            const lngBuf = radiusMeters / (111000 * Math.cos(lat * Math.PI / 180));
+            const hits = STORE_INDEX.filter(p =>
+                p.minLat !== undefined &&
+                lat >= p.minLat - latBuf && lat <= p.maxLat + latBuf &&
+                lng >= p.minLng - lngBuf && lng <= p.maxLng + lngBuf
+            );
+            if (hits.length > 0) return hits;
+            const nearest = findProvinceForPoint(lat, lng); // 어느 범위에도 안 걸치면 가장 가까운 한 곳
+            return nearest ? [nearest] : [];
+        }
+
+        // 반경에 걸치는 시/도 파일들을 (아직 안 불러온 것만) 받아 allStoresDB에 누적 병합한다.
+        // 사용자가 이동할수록 로딩된 시/도가 쌓여 자연스럽게 전국으로 확장된다.
         async function loadStoresForLocation(lat, lng) {
             if (STORE_INDEX.length === 0) return false;
-            const provinceName = await getProvinceNameByCoords(lat, lng);
-            let nearest = provinceName ? STORE_INDEX.find(p => p.province === provinceName) : null;
-            if (!nearest) nearest = findProvinceForPoint(lat, lng);
-            if (!nearest || nearest.file === loadedProvinceFile) return false;
+            const buffer = Math.max(currentRadius, 500) + 3000; // 반경 + 여유(경계 근처 커버)
+            const needed = provincesNearPoint(lat, lng, buffer).filter(p => !loadedProvinceFiles.has(p.file));
+            if (needed.length === 0) return false;
 
-            try {
-                const res = await fetch(DATA_BASE_URL + 'stores/' + nearest.file);
-                if (!res.ok) throw new Error('store shard fetch failed');
-                REAL_STORES = await res.json();
-                loadedProvinceFile = nearest.file;
-                allStoresDB = REAL_STORES;
-                return true;
-            } catch (e) {
-                console.log(`${nearest.file} 로드 실패 - 약국 데이터 갱신 안 됨`);
-                return false;
-            }
+            const loaded = await Promise.all(needed.map(async (p) => {
+                try {
+                    const res = await fetch(DATA_BASE_URL + 'stores/' + p.file);
+                    if (!res.ok) throw new Error('store shard fetch failed');
+                    const stores = await res.json();
+                    loadedProvinceFiles.add(p.file);
+                    return stores;
+                } catch (e) {
+                    console.log(`${p.file} 로드 실패 - 약국 데이터 갱신 안 됨`);
+                    return null;
+                }
+            }));
+
+            const added = loaded.filter(Boolean).flat();
+            if (added.length === 0) return false;
+            allStoresDB = allStoresDB.concat(added);
+            REAL_STORES = allStoresDB;
+            return true;
         }
 
         function loadSavedData() {
@@ -961,7 +984,12 @@
             searchCircle.setRadius(r);
             map.invalidateSize(); // 초기 로딩 타이밍에 따라 지도 크기가 아직 0일 수 있어 방어적으로 갱신
             map.flyToBounds(searchCircle.getBounds(), { padding: [20, 20], duration: 0.5 });
-            setTimeout(() => { loadStoresInRadius(); showToast(`검색 반경이 ${r}m로 변경되었습니다.`); }, 600);
+            setTimeout(async () => {
+                const c = map.getCenter();
+                await loadStoresForLocation(c.lat, c.lng); // 넓힌 반경에 새로 걸치는 시/도까지 로딩
+                loadStoresInRadius();
+                showToast(`검색 반경이 ${r}m로 변경되었습니다.`);
+            }, 600);
         }
         function applyStartupSettings() { highlightRadiusButton(currentRadius); }
 
