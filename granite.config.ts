@@ -5,7 +5,7 @@ export default defineConfig({
   brand: {
     displayName: '대형약국',
     primaryColor: '#059669',
-    icon: '', // 콘솔에 등록한 로고 URL로 교체
+    icon: 'https://static.toss.im/appsintoss/32449/fe9026e3-db89-4cb6-8b0d-13b62d146c4b.png',
   },
   web: {
     host: 'localhost',
