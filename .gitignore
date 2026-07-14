@@ -1,5 +1,7 @@
 node_modules/
 dist/
+.granite/
+*.ait
 .env
 scripts/.moi-*.json
 scripts/.removed-closed-egen.json
