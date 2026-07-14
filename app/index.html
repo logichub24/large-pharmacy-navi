@@ -292,6 +292,7 @@
                         </div>
                         <p id="bsStoreAddr" class="text-[11px] text-gray-500 mt-0.5 truncate">주소</p>
                         <p id="bsStoreHours" class="text-[11px] text-gray-500 mt-0.5"></p>
+                        <p id="bsStorePhone" class="text-[11px] text-emerald-600 font-bold mt-0.5"></p>
                     </div>
                 </div>
                 <button onclick="toggleFavoriteActive()" id="bsFavBtn" class="p-1.5 shrink-0"><i class="fa-regular fa-heart text-2xl text-gray-300"></i></button>
@@ -1037,6 +1038,7 @@
             document.getElementById('bsStoreName').innerText = store.name;
             document.getElementById('bsStoreAddr').innerText = store.address || '주소 정보 준비 중';
             document.getElementById('bsStoreHours').innerText = formatHoursText(store) + (store.area ? ` · 영업면적 ${store.area}㎡ (약 ${Math.round(store.area / 3.305785)}평)` : '');
+            document.getElementById('bsStorePhone').innerText = store.phone ? `☎ ${store.phone}` : '';
 
             const open = isOpenNow(store);
             const badge = document.getElementById('bsOpenBadge');
