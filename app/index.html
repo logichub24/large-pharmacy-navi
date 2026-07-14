@@ -536,12 +536,12 @@
         let mapServiceFilters = new Set(); // 지도/전체목록에 공통 적용되는 서비스 필터(AND)
         let pharmacyTypeFilter = null; // null=전체, 'general'=일반약국, 'large'=대형약국, 'warehouse'=창고형약국 (4분할, 지도/전체목록 공용)
         let mapTypeCounts = { all: 0, general: 0, large: 0, warehouse: 0 }; // 현재 반경 내 유형별 집계(세그먼트 배지용)
-        let allStoresDB = [], REAL_STORES = [];
+        let allStoresDB = [];
         let STORE_INDEX = [], loadedProvinceFiles = new Set(); // 이미 불러온 시/도 파일들(전국 누적 로딩)
         let searchItemFilter = null;
 
-        // 실제 데이터가 준비되면 stores/index.json + stores/<시도>.json으로 자동 전환됩니다.
-        // (scripts/pharmacyLocations.js 로 동기화. 아직 없으면 데모용 가상 약국 데이터를 사용합니다.)
+        // stores/index.json + stores/<시도>.json 실데이터만 사용한다(scripts/pharmacyLocations.js 로 동기화).
+        // 가짜 약국으로 오인·오안내되지 않도록 데모/가상 데이터는 두지 않는다 - 못 불러오면 빈 상태로 안내.
         const DATA_BASE_URL = './';
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -553,14 +553,13 @@
                         STORE_INDEX = index;
                         await loadStoresForLocation(37.498095, 127.027610); // 기본 위치(서울) 기준 1차 로딩
                     } else {
-                        console.log('stores/index.json 없음 - 데모용 가상 약국 데이터 사용');
+                        console.log('stores/index.json 을 불러오지 못했습니다.');
                     }
                     startApp();
                 });
         });
 
         function startApp() {
-            if (REAL_STORES.length === 0) generateVirtualPharmacies();
             initMap();
             applyStartupSettings();
             renderItemQuickChips();
@@ -671,7 +670,6 @@
             const added = loaded.filter(Boolean).flat();
             if (added.length === 0) return false;
             allStoresDB = allStoresDB.concat(added);
-            REAL_STORES = allStoresDB;
             return true;
         }
 
@@ -684,73 +682,6 @@
         }
         function saveFavorites() {
             try { localStorage.setItem('ph_favorites', JSON.stringify([...favoriteStores])); } catch(e) {}
-        }
-
-        // ── 데모용 가상 약국 생성 (실데이터 연동 전 폴백) ────────────────────
-        const NAME_PREFIX = ['건강', '행복', '365', '하나', '우리', '메가', '참', '으뜸', '굿', '베스트', '365데이'];
-        function randPhone() {
-            const mid = String(Math.floor(1000 + Math.random() * 9000));
-            const last = String(Math.floor(1000 + Math.random() * 9000));
-            return `02-${mid}-${last}`;
-        }
-        function pad2(n) { return String(n).padStart(2, '0'); }
-
-        function generateVirtualPharmacies(baseLat = 37.498095, baseLng = 127.027610) {
-            allStoresDB = [];
-            for (let i = 0; i < 220; i++) {
-                // 실제 전국 분포(일반 99% / 대형 0.9% / 창고형 0.05%)보다는 기능 시연을 위해 대형·창고형 비중을 높게 잡음
-                const roll = Math.random();
-                const sizeTier = roll < 0.02 ? 'warehouse' : roll < 0.15 ? 'large' : 'general';
-                const isLarge = sizeTier !== 'general'; // 대형/창고형 공통 특성(서비스 확률 등)에 사용
-                const area = sizeTier === 'warehouse' ? Math.round(991 + Math.random() * 3000)
-                    : sizeTier === 'large' ? Math.round(231 + Math.random() * 760)
-                    : null;
-                const lat = baseLat + (Math.random() - 0.5) * 0.09;
-                const lng = baseLng + (Math.random() - 0.5) * 0.09;
-                const namePrefix = NAME_PREFIX[Math.floor(Math.random() * NAME_PREFIX.length)];
-                const name = `${namePrefix}${sizeTier === 'warehouse' ? '메가팜' : sizeTier === 'large' ? '대형약국' : '약국'} ${i + 1}호점`;
-
-                const open365 = isLarge ? Math.random() < 0.6 : Math.random() < 0.08;
-                const nightService = isLarge ? Math.random() < 0.5 : Math.random() < 0.1;
-                const holidayOpen = open365 || Math.random() < (isLarge ? 0.5 : 0.15);
-                const is24h = open365 && nightService && Math.random() < 0.35;
-
-                let openHour, closeHour;
-                if (is24h) { openHour = 0; closeHour = 24; }
-                else {
-                    openHour = 8 + Math.floor(Math.random() * 2);
-                    closeHour = nightService ? (22 + Math.floor(Math.random() * 3)) : (19 + Math.floor(Math.random() * 3));
-                }
-
-                const itemPool = ITEM_CATS.map(c => c.key);
-                const itemCount = isLarge ? (5 + Math.floor(Math.random() * 4)) : (2 + Math.floor(Math.random() * 3));
-                const items = itemPool.sort(() => Math.random() - 0.5).slice(0, itemCount);
-
-                allStoresDB.push({
-                    id: `demo_${i}`,
-                    name, lat, lng,
-                    address: null,
-                    phone: randPhone(),
-                    area,
-                    sizeTier,
-                    hours: {
-                        is24h,
-                        open: is24h ? '00:00' : `${pad2(openHour)}:00`,
-                        close: is24h ? '24:00' : `${pad2(closeHour % 24)}:00`,
-                        open365, nightService, holidayOpen,
-                    },
-                    services: {
-                        parking: isLarge ? Math.random() < 0.7 : Math.random() < 0.2,
-                        driveThrough: isLarge ? Math.random() < 0.1 : false,
-                        prescription: Math.random() < 0.9,
-                        healthFunctionalFood: isLarge ? Math.random() < 0.85 : Math.random() < 0.35,
-                        medicalDevice: isLarge ? Math.random() < 0.75 : Math.random() < 0.25,
-                        bloodPressure: isLarge ? Math.random() < 0.6 : Math.random() < 0.2,
-                        bloodSugar: isLarge ? Math.random() < 0.4 : Math.random() < 0.1,
-                    },
-                    items,
-                });
-            }
         }
 
         // ── 지도 ─────────────────────────────────────────────────────────
@@ -790,8 +721,7 @@
                         const lat = position.coords.latitude, lng = position.coords.longitude;
                         map.setView([lat, lng], 16);
                         searchCircle.setLatLng([lat, lng]);
-                        const switched = await loadStoresForLocation(lat, lng);
-                        if (!switched && REAL_STORES.length === 0) generateVirtualPharmacies(lat, lng);
+                        await loadStoresForLocation(lat, lng);
                         loadStoresInRadius();
                     },
                     error => { loadStoresInRadius(); },
