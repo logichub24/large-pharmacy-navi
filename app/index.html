@@ -541,6 +541,7 @@
         let mapTypeCounts = { all: 0, general: 0, large: 0, warehouse: 0 }; // 현재 반경 내 유형별 집계(세그먼트 배지용)
         let allStoresDB = [];
         let STORE_INDEX = [], loadedProvinceFiles = new Set(); // 이미 불러온 시/도 파일들(전국 누적 로딩)
+        let allProvincesLoaded = false; // 전체목록용 - 전국 시/도를 모두 불러왔는지
         let searchItemFilter = null;
 
         // stores/index.json + stores/<시도>.json 실데이터만 사용한다(scripts/pharmacyLocations.js 로 동기화).
@@ -674,6 +675,34 @@
             if (added.length === 0) return false;
             allStoresDB = allStoresDB.concat(added);
             return true;
+        }
+
+        // 전체목록용 - 아직 안 불러온 전국 시/도를 모두 받아 allStoresDB에 합친다(개수 정확성 위해).
+        async function loadAllProvinces() {
+            if (allProvincesLoaded || STORE_INDEX.length === 0) return;
+            const needed = STORE_INDEX.filter(p => !loadedProvinceFiles.has(p.file));
+            const loaded = await Promise.all(needed.map(async (p) => {
+                try {
+                    const res = await fetch(DATA_BASE_URL + 'stores/' + p.file);
+                    if (!res.ok) throw new Error('fetch failed');
+                    const stores = await res.json();
+                    loadedProvinceFiles.add(p.file);
+                    return stores;
+                } catch (e) { return null; }
+            }));
+            const added = loaded.filter(Boolean).flat();
+            if (added.length) allStoresDB = allStoresDB.concat(added);
+            allProvincesLoaded = STORE_INDEX.every(p => loadedProvinceFiles.has(p.file));
+        }
+
+        // 전체목록 열기 - 전국 로딩 후 렌더(첫 회만 로딩, 이후 즉시).
+        async function openAllList() {
+            const list = document.getElementById('allList');
+            if (!allProvincesLoaded && STORE_INDEX.length) {
+                list.innerHTML = `<div class="p-8 text-center text-gray-400 font-medium">전국 약국을 불러오는 중…</div>`;
+                await loadAllProvinces();
+            }
+            renderAllList();
         }
 
         function loadSavedData() {
@@ -1015,7 +1044,7 @@
             if (id === 'searchModal') setTimeout(() => document.getElementById('searchInput').focus(), 100);
             else if (id === 'favoritesModal') renderFavorites();
             else if (id === 'openNowModal') renderOpenNowList();
-            else if (id === 'allListModal') renderAllList();
+            else if (id === 'allListModal') openAllList();
         }
         function goHome() { hideAllTabModals(); closeSheet(); setActiveNav('home'); }
 
@@ -1298,12 +1327,21 @@
                 warehouse: serviceFiltered.filter(s => s.sizeTier === 'warehouse').length,
             }, 'setPharmacyTypeFilter');
             let items = serviceFiltered.filter(passesTypeFilter);
-            if (map) items = [...items].sort((a, b) => map.distance(map.getCenter(), [a.lat, a.lng]) - map.distance(map.getCenter(), [b.lat, b.lng]));
+            if (map) {
+                const c = map.getCenter();
+                // 거리 1회씩만 계산해 정렬(약 3만 건 비교마다 재계산하면 느려짐)
+                items = items.map(s => ({ s, d: map.distance(c, [s.lat, s.lng]) }))
+                    .sort((a, b) => a.d - b.d).map(x => x.s);
+            }
             if (items.length === 0) {
                 list.innerHTML = `<div class="p-8 text-center text-gray-400 font-medium">조건에 맞는 약국이 없습니다.</div>`;
                 return;
             }
-            list.innerHTML = items.map(s => createStoreCardHTML(s)).join('');
+            // 전국 수만 건을 한 번에 그리면 느리므로 가까운 순 상위 N곳만 렌더
+            const CAP = 300;
+            const shown = items.slice(0, CAP);
+            list.innerHTML = shown.map(s => createStoreCardHTML(s)).join('')
+                + (items.length > CAP ? `<div class="p-4 text-center text-xs text-gray-400">가까운 순 상위 ${CAP}곳을 표시합니다 · 조건에 맞는 약국 ${items.length.toLocaleString()}곳</div>` : '');
         }
 
         // ── 지도 서비스 필터 팝업 ────────────────────────────────────────
