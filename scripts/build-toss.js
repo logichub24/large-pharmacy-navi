@@ -1,8 +1,8 @@
 // 토스인앱(Apps in Toss) 빌드용 스크립트.
 // granite.config.ts의 web.commands.build/dev에서 호출됨.
 // 정적 HTML 앱이라 별도 번들러 없이, 필요한 파일만 dist/로 복사한다.
-// stores/는 복사하지 않음 - 런타임에 상대경로(fetch('./stores/...'))로 직접 불러오므로
-// 번들에 포함시키면 용량만 커지고, 배포 후에도 같은 위치에서 서빙되면 그대로 동작한다.
+// stores/도 반드시 복사해야 한다 - 앱이 런타임에 fetch('./stores/...')로 실데이터를 불러오는데,
+// dist가 곧 배포 루트라 여기에 없으면 데이터를 못 받아 데모 데이터로 폴백된다(약국이 몇 곳만 보임).
 const fs = require('fs');
 const path = require('path');
 
@@ -33,6 +33,9 @@ if (VWORLD_KEY) {
 }
 fs.writeFileSync(path.join(DIST_DIR, 'index.html'), html, 'utf-8');
 fs.copyFileSync(path.join(SRC_DIR, 'ads.js'), path.join(DIST_DIR, 'ads.js'));
+if (fs.existsSync(path.join(SRC_DIR, 'sw.js'))) {
+  fs.copyFileSync(path.join(SRC_DIR, 'sw.js'), path.join(DIST_DIR, 'sw.js'));
+}
 
 for (const file of fs.readdirSync(SRC_DIR)) {
   if (/^icon.*\.(png|svg)$/.test(file)) {
@@ -40,4 +43,8 @@ for (const file of fs.readdirSync(SRC_DIR)) {
   }
 }
 
-console.log('토스 빌드 완료:', DIST_DIR);
+// stores/ 전체 복사(실데이터). 없으면 배포본이 데모 데이터로 폴백된다.
+fs.cpSync(path.join(SRC_DIR, 'stores'), path.join(DIST_DIR, 'stores'), { recursive: true });
+
+const storeCount = fs.readdirSync(path.join(DIST_DIR, 'stores')).filter((f) => f.endsWith('.json')).length;
+console.log(`토스 빌드 완료: ${DIST_DIR} (stores ${storeCount}개 파일 포함)`);
