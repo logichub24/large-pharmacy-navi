@@ -477,6 +477,8 @@
 
     </div> <!-- app-container -->
 
+    <!-- 로컬 개발 전용 브이월드 키(gitignore됨). 저장소·배포본엔 없으며(404는 무시), 있으면 로컬에서 위성/주소검색이 켜진다. -->
+    <script src="vworld-key.local.js" onerror="void 0"></script>
     <script>
         // ── 상수 정의 ─────────────────────────────────────────────────────
         // 취급 품목 카테고리(재고 조회가 아닌 "취급 여부 안내" 목적)
@@ -528,7 +530,7 @@
         // 브이월드(국토지리정보원) API 키 - 지역/주소 검색, 위성뷰에 사용.
         // 저장소에는 커밋하지 않음(공개 git 히스토리에 실키 노출 방지). 로컬에서 직접 채워 넣거나
         // 배포 시 빌드 단계에서 주입해서 쓸 것. 무료 발급: https://www.vworld.kr
-        const VWORLD_KEY = '';
+        const VWORLD_KEY = (typeof window !== 'undefined' && window.__VWORLD_KEY__) || '';
 
         let map, activeStore = null;
         let favoriteStores = new Set();

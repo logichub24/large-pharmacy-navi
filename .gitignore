@@ -4,3 +4,4 @@ dist/
 scripts/.moi-*.json
 scripts/.removed-closed-egen.json
 건강_약국*.csv
+app/vworld-key.local.js

@@ -28,7 +28,7 @@ fs.mkdirSync(DIST_DIR, { recursive: true });
 const VWORLD_KEY = readEnvKey('VWORLD_KEY');
 let html = fs.readFileSync(path.join(SRC_DIR, 'index.html'), 'utf-8');
 if (VWORLD_KEY) {
-  html = html.replace(/const VWORLD_KEY = '[^']*';/, `const VWORLD_KEY = '${VWORLD_KEY}';`);
+  html = html.replace(/const VWORLD_KEY = [^;]*;/, `const VWORLD_KEY = '${VWORLD_KEY}';`);
   console.log('VWORLD_KEY 주입됨(dist 전용)');
 }
 fs.writeFileSync(path.join(DIST_DIR, 'index.html'), html, 'utf-8');
