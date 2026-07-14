@@ -1161,7 +1161,15 @@
         function callStore() {
             if (!activeStore) return;
             if (!activeStore.phone) { showToast('등록된 전화번호가 없습니다.'); return; }
-            window.location.href = 'tel:' + activeStore.phone;
+            // WebView(토스 앱)에서 tel: 스킴이 OS 다이얼러로 확실히 넘어가도록 실제 앵커 클릭 사용.
+            // 다이얼러 호환을 위해 숫자와 +만 남긴다(하이픈 등 제거).
+            const tel = activeStore.phone.replace(/[^0-9+]/g, '');
+            const a = document.createElement('a');
+            a.href = 'tel:' + tel;
+            a.style.display = 'none';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
         }
         function openKakaoDirections() {
             if (!activeStore) return;
