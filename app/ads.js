@@ -8,7 +8,6 @@ import { TossAds, loadFullScreenAd, showFullScreenAd, getCurrentLocation, Accura
 const AD_CONFIG = {
   banner: 'ait.v2.live.ebd5bc82cd084fe6',
   interstitial: 'ait.v2.live.41fab208a62d4ad4',
-  reward: 'ait.v2.live.11e75add17f64d1f', // 발급받았으나 보상 로직 미연동 - 보상 구조 확정 후 붙일 예정
 };
 
 const INTERSTITIAL_EVERY_N_STORE_OPENS = 4;
