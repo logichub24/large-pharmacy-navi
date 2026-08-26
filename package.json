@@ -6,13 +6,16 @@
   "scripts": {
     "sync:stores": "node scripts/pharmacyLocations.js",
     "apply:overrides": "node scripts/applyOverrides.js",
-    "build:toss": "node scripts/build-toss.js"
+    "build:toss": "node scripts/build-toss.js",
+    "dev": "node scripts/build-toss.js",
+    "build": "node scripts/build-toss.js && ait build"
   },
   "dependencies": {
     "axios": "^1.7.7",
     "proj4": "^2.20.9"
   },
   "devDependencies": {
-    "@apps-in-toss/web-framework": "^2.9.2"
+    "@apps-in-toss/web-framework": "^3.1.1",
+    "@apps-in-toss/devtools": "^3.1.1"
   }
 }

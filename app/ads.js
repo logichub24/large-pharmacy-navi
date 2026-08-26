@@ -1,9 +1,9 @@
 // 토스인앱(Apps in Toss) 광고 SDK 연동.
-// 일반 브라우저(GitHub Pages 등)에서는 isSupported()가 false라 전부 조용히 no-op되고,
+// 일반 브라우저(GitHub Pages 등)에서는 SDK 상수 접근이 예외를 던질 수 있어 전부 조용히 no-op되고,
 // 토스 앱 WebView 안에서 열렸을 때만 실제 광고가 붙는다.
 //
 // 앱인토스 콘솔에서 이 앱으로 발급받은 실제 광고 그룹 ID(live).
-import { TossAds, loadFullScreenAd, showFullScreenAd, getCurrentLocation, Accuracy } from 'https://esm.sh/@apps-in-toss/web-bridge@2.9.2';
+import { TossAds, loadFullScreenAd, showFullScreenAd, getCurrentLocation, Accuracy } from 'https://esm.sh/@apps-in-toss/web-framework@3.1.1';
 
 const AD_CONFIG = {
   banner: 'ait.v2.live.ebd5bc82cd084fe6',
@@ -15,8 +15,12 @@ const INTERSTITIAL_EVERY_N_STORE_OPENS = 4;
 let storeOpenCount = 0;
 let interstitialReady = false;
 
+function isSupported(api) {
+  try { return typeof api?.isSupported === 'function' && api.isSupported(); } catch { return false; }
+}
+
 function loadInterstitial() {
-  if (!loadFullScreenAd.isSupported || !loadFullScreenAd.isSupported()) return;
+  if (!isSupported(loadFullScreenAd)) return;
   loadFullScreenAd({
     options: { adGroupId: AD_CONFIG.interstitial },
     onEvent: (event) => { if (event.type === 'loaded') interstitialReady = true; },
@@ -48,7 +52,7 @@ window.tossGetCurrentLocation = function tossGetCurrentLocation() {
 };
 
 function init() {
-  if (!TossAds.initialize.isSupported || !TossAds.initialize.isSupported()) return; // 토스 앱이 아니면 전부 스킵
+  if (!isSupported(TossAds.initialize)) return; // 토스 앱이 아니면 전부 스킵
 
   document.body.classList.add('in-toss-app');
 
