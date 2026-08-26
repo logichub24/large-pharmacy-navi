@@ -3,6 +3,9 @@ dist/
 .granite/
 *.ait
 .env
+.env.local
+*.log
+.DS_Store
 scripts/.moi-*.json
 scripts/.removed-closed-egen.json
 건강_약국*.csv
