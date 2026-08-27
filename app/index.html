@@ -529,9 +529,8 @@
         // 지도 우측 패널의 "서비스 필터" 팝업에서 우선 노출할 핵심 필터
         const QUICK_FILTER_KEYS = ['open365', 'nightService', 'holidayOpen', 'parking', 'driveThrough', 'healthFunctionalFood', 'medicalDevice'];
 
-        // 브이월드(국토지리정보원) API 키 - 지역/주소 검색, 위성뷰에 사용.
-        // 저장소에는 커밋하지 않음(공개 git 히스토리에 실키 노출 방지). 로컬에서 직접 채워 넣거나
-        // 배포 시 빌드 단계에서 주입해서 쓸 것. 무료 발급: https://www.vworld.kr
+        // 브이월드 키는 배포본에 주입하지 않는다. 키가 필요한 지도·주소 API는 서버 프록시를
+        // 마련한 뒤에만 다시 활성화한다.
         const VWORLD_KEY = (typeof window !== 'undefined' && window.__VWORLD_KEY__) || '';
 
         let map, activeStore = null;
